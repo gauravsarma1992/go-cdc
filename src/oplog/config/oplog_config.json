@@ -1,0 +1,8 @@
+{
+  "db_name": "test",
+  "collections": [{
+    "filters": [],
+    "name": "coll_one"
+  }]
+
+}
