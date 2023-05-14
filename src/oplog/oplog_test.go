@@ -51,4 +51,12 @@ var _ = Describe("Oplog", func() {
 		})
 	})
 
+	Describe("Running the oplog loop", func() {
+		newOplog, err := New()
+		err = newOplog.Run()
+		Context("when running the oplog loop", func() {
+			It("ensures no error", func() { Expect(err).To(BeNil()) })
+		})
+	})
+
 })

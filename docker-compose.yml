@@ -2,6 +2,8 @@ version: "3.9"
 services:
   cdc:
     build: .
+    hostname: gocdc
+    container_name: gocdc
     ports:
       - "8000:5000"
   kafka-zookeeper:

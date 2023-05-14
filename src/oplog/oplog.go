@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"time"
 
 	"github.com/go-cdc/filters"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -26,6 +25,8 @@ type (
 		mongoConfig *MongoConfig
 		db          *mongo.Database
 		collections []*mongo.Collection
+
+		closeCh chan bool
 	}
 	MongoConfig struct {
 		Username string `json:"username"`
@@ -47,6 +48,7 @@ type (
 func New() (oplogCtx *Oplog, err error) {
 	oplogCtx = &Oplog{
 		noOfWorkers: 4,
+		closeCh:     make(chan bool),
 	}
 	if oplogCtx.oplogConfig, err = NewOplogConfig(); err != nil {
 		return
@@ -100,15 +102,6 @@ func NewMongoConfig() (mongoConfig *MongoConfig, err error) {
 	return
 }
 
-//func (oplogCtx *Oplog) Watch() (err error) {
-//	episodesStream, err := episodesCollection.Watch(context.TODO(), mongo.Pipeline{})
-//	if err != nil {
-//		panic(err)
-//	}
-//	return
-//}
-//
-
 func (mongoConfig *MongoConfig) GetUrl() (url string) {
 	if mongoConfig.Username != "" && mongoConfig.Password != "" {
 		url = fmt.Sprintf("mongodb://%s:%s@%s:%s",
@@ -119,7 +112,7 @@ func (mongoConfig *MongoConfig) GetUrl() (url string) {
 		)
 		return
 	}
-	url = fmt.Sprintf("mongodb://%s:%s",
+	url = fmt.Sprintf("mongodb://%s:%s/dev/?replicaSet=dbrs",
 		mongoConfig.Host,
 		mongoConfig.Port,
 	)
@@ -134,7 +127,6 @@ func (oplogCtx *Oplog) Connect() (err error) {
 	if err != nil {
 		panic(err)
 	}
-	defer client.Disconnect(context.Background())
 	if err = client.Ping(context.Background(), nil); err != nil {
 		return
 	}
@@ -149,8 +141,6 @@ func (oplogCtx *Oplog) Connect() (err error) {
 		currCollection = oplogCtx.db.Collection(oplogCollection.Name)
 		oplogCtx.collections = append(oplogCtx.collections, currCollection)
 
-		//log.Println(currCollection.InsertOne(context.TODO(), bson.M{"hello": "world"}))
-
 		log.Println("Adding collections - ", currCollection.Name())
 	}
 
@@ -161,8 +151,16 @@ func (oplogCtx *Oplog) Run() (err error) {
 	if err = oplogCtx.Connect(); err != nil {
 		return
 	}
-	for {
-		time.Sleep(5 * time.Second)
+	for _, collection := range oplogCtx.collections {
+		var (
+			watcher *OplogWatcher
+		)
+		if watcher, err = NewOplogWatcher(oplogCtx.db, collection); err != nil {
+			log.Println(err)
+			continue
+		}
+		go watcher.Run()
 	}
+	<-oplogCtx.closeCh
 	return
 }
