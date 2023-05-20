@@ -17,7 +17,7 @@ type (
 		Data string `json:"_data"`
 	}
 	MessageNs struct {
-		Db             string `json:"db"`
+		DbName         string `json:"db"`
 		CollectionName string `json:"coll"`
 	}
 )
