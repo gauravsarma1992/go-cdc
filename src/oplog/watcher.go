@@ -12,16 +12,20 @@ import (
 
 type (
 	OplogWatcher struct {
-		Database   *mongo.Database
-		Collection *mongo.Collection
-		Bookmark   string
+		Database                  *mongo.Database
+		Collection                *mongo.Collection
+		Bookmark                  string
+		WatchThreshold            int
+		WatchCount                int
+		ShouldHonorWatchThreshold bool
 	}
 )
 
 func NewOplogWatcher(db *mongo.Database, collection *mongo.Collection) (watcher *OplogWatcher, err error) {
 	watcher = &OplogWatcher{
-		Database:   db,
-		Collection: collection,
+		Database:       db,
+		Collection:     collection,
+		WatchThreshold: 1000,
 	}
 	return
 }
@@ -51,6 +55,11 @@ func (watcher *OplogWatcher) Run() (err error) {
 	}
 	for collectionStream.Next(context.TODO()) {
 		log.Println("Received oplog event", collectionStream.Current)
+		watcher.WatchCount += 1
+		if watcher.ShouldHonorWatchThreshold == true && watcher.WatchCount >= watcher.WatchThreshold {
+			log.Println("Exiting to honor WatchThreshold")
+			break
+		}
 	}
 	return
 }

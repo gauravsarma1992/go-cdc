@@ -2,12 +2,13 @@ package oplog
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-func TestBooks(t *testing.T) {
+func TestOplog(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Oplog test Suite")
 }
@@ -26,7 +27,7 @@ var _ = Describe("Oplog", func() {
 		Context("when default settings are used", func() {
 			It("initialises the number of workers", func() { Expect(newOplog.noOfWorkers).To(Equal(uint8(4))) })
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
-			It("sets host to localhost", func() { Expect(newOplog.mongoConfig.Host).To(Equal("localhost")) })
+			It("sets host to localhost", func() { Expect(newOplog.mongoConfig.Host).To(Equal("mongodb")) })
 			It("sets port to default port", func() { Expect(newOplog.mongoConfig.Port).To(Equal("27017")) })
 		})
 	})
@@ -36,8 +37,8 @@ var _ = Describe("Oplog", func() {
 		mongoUrl := mongoConfig.GetUrl()
 		Context("when fetching URL", func() {
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
-			It("sets host to localhost", func() { Expect(mongoConfig.Host).To(Equal("localhost")) })
-			It("sets URL properly", func() { Expect(mongoUrl).To(Equal("mongodb://localhost:27017")) })
+			It("sets host to localhost", func() { Expect(mongoConfig.Host).To(Equal("mongodb")) })
+			It("sets URL properly", func() { Expect(mongoUrl).To(Equal("mongodb://mongodb:27017/dev/?replicaSet=dbrs")) })
 		})
 	})
 
@@ -53,6 +54,10 @@ var _ = Describe("Oplog", func() {
 
 	Describe("Running the oplog loop", func() {
 		newOplog, err := New()
+		go func() {
+			time.Sleep(2 * time.Second)
+			newOplog.closeCh <- true
+		}()
 		err = newOplog.Run()
 		Context("when running the oplog loop", func() {
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
