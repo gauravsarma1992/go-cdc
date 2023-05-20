@@ -37,6 +37,15 @@ func (watcher *OplogWatcher) getStreamOpts() (opts *options.ChangeStreamOptions)
 	return
 }
 
+func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
+	if watcher.ShouldHonorWatchThreshold == true && watcher.WatchCount >= watcher.WatchThreshold {
+		log.Println("Exiting to honor WatchThreshold")
+		return
+	}
+	shouldContinue = true
+	return
+}
+
 func (watcher *OplogWatcher) Run() (err error) {
 	var (
 		collectionStream *mongo.ChangeStream
@@ -54,10 +63,17 @@ func (watcher *OplogWatcher) Run() (err error) {
 		return
 	}
 	for collectionStream.Next(context.TODO()) {
-		log.Println("Received oplog event", collectionStream.Current)
+		var (
+			message *Message
+		)
+		if message, err = NewMessage(collectionStream.Current.String()); err != nil {
+			log.Println("Failed to convert raw message to bytes", err)
+			continue
+		}
+		log.Println("Received oplog event", message, "with ResumeToken", collectionStream.ResumeToken())
+
 		watcher.WatchCount += 1
-		if watcher.ShouldHonorWatchThreshold == true && watcher.WatchCount >= watcher.WatchThreshold {
-			log.Println("Exiting to honor WatchThreshold")
+		if !watcher.ShouldContinueProcessing() {
 			break
 		}
 	}
