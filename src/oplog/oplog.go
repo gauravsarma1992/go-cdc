@@ -14,17 +14,19 @@ import (
 )
 
 const (
-	DefaultOplogConfigFile = "./config/oplog_config.json"
-	DefaultMongoConfigFile = "./config/mongo_config.json"
+	DefaultOplogConfigFile       = "./config/oplog_config.json"
+	DefaultSourceMongoConfigFile = "./config/source_mongo_config.json"
+	DefaultDestMongoFile         = "./config/dest_mongo_config.json"
 )
 
 type (
 	Oplog struct {
-		noOfWorkers uint8
-		oplogConfig *OplogConfig
-		mongoConfig *MongoConfig
-		db          *mongo.Database
-		collections []*mongo.Collection
+		noOfWorkers       uint8
+		oplogConfig       *OplogConfig
+		sourceMongoConfig *MongoConfig
+		destMongoConfig   *MongoConfig
+		db                *mongo.Database
+		collections       []*mongo.Collection
 
 		closeCh chan bool
 	}
@@ -53,7 +55,10 @@ func New() (oplogCtx *Oplog, err error) {
 	if oplogCtx.oplogConfig, err = NewOplogConfig(); err != nil {
 		return
 	}
-	if oplogCtx.mongoConfig, err = NewMongoConfig(); err != nil {
+	if oplogCtx.sourceMongoConfig, err = NewMongoConfig(DefaultSourceMongoConfigFile); err != nil {
+		return
+	}
+	if oplogCtx.destMongoConfig, err = NewMongoConfig(DefaultDestMongoFile); err != nil {
 		return
 	}
 	return
@@ -81,40 +86,40 @@ func NewOplogConfig() (oplogConfig *OplogConfig, err error) {
 	return
 }
 
-func NewMongoConfig() (mongoConfig *MongoConfig, err error) {
+func NewMongoConfig(fileName string) (sourceMongoConfig *MongoConfig, err error) {
 	var (
 		fileB []byte
 	)
-	mongoConfig = &MongoConfig{}
-	if fileB, err = ioutil.ReadFile(DefaultMongoConfigFile); err != nil {
+	sourceMongoConfig = &MongoConfig{}
+	if fileB, err = ioutil.ReadFile(fileName); err != nil {
 		return
 	}
-	if err = json.Unmarshal(fileB, mongoConfig); err != nil {
+	if err = json.Unmarshal(fileB, sourceMongoConfig); err != nil {
 		return
 	}
-	if mongoConfig.Host == "" {
-		mongoConfig.Host = "localhost"
+	if sourceMongoConfig.Host == "" {
+		sourceMongoConfig.Host = "localhost"
 	}
-	if mongoConfig.Port == "" {
-		mongoConfig.Port = "27017"
+	if sourceMongoConfig.Port == "" {
+		sourceMongoConfig.Port = "27017"
 	}
 
 	return
 }
 
-func (mongoConfig *MongoConfig) GetUrl() (url string) {
-	if mongoConfig.Username != "" && mongoConfig.Password != "" {
+func (sourceMongoConfig *MongoConfig) GetUrl() (url string) {
+	if sourceMongoConfig.Username != "" && sourceMongoConfig.Password != "" {
 		url = fmt.Sprintf("mongodb://%s:%s@%s:%s",
-			mongoConfig.Username,
-			mongoConfig.Password,
-			mongoConfig.Host,
-			mongoConfig.Port,
+			sourceMongoConfig.Username,
+			sourceMongoConfig.Password,
+			sourceMongoConfig.Host,
+			sourceMongoConfig.Port,
 		)
 		return
 	}
 	url = fmt.Sprintf("mongodb://%s:%s/dev/?replicaSet=dbrs",
-		mongoConfig.Host,
-		mongoConfig.Port,
+		sourceMongoConfig.Host,
+		sourceMongoConfig.Port,
 	)
 	return
 }
@@ -123,7 +128,7 @@ func (oplogCtx *Oplog) Connect() (err error) {
 	var (
 		client *mongo.Client
 	)
-	client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(oplogCtx.mongoConfig.GetUrl()))
+	client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(oplogCtx.sourceMongoConfig.GetUrl()))
 	if err != nil {
 		panic(err)
 	}
@@ -131,7 +136,7 @@ func (oplogCtx *Oplog) Connect() (err error) {
 		return
 	}
 
-	oplogCtx.db = client.Database(oplogCtx.mongoConfig.DbName)
+	oplogCtx.db = client.Database(oplogCtx.sourceMongoConfig.DbName)
 	log.Println("Connected to database - ", oplogCtx.db.Name())
 
 	for _, oplogCollection := range oplogCtx.oplogConfig.Collections {

@@ -1,0 +1,7 @@
+{
+  "username": "",
+  "password": "",
+  "host": "mongodb",
+  "port": "27017",
+  "db_name": "dev_dest"
+}
