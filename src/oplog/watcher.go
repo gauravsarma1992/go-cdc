@@ -18,6 +18,8 @@ type (
 		WatchThreshold            int
 		WatchCount                int
 		ShouldHonorWatchThreshold bool
+
+		CtrlrCh chan *Message
 	}
 )
 
@@ -26,6 +28,8 @@ func NewOplogWatcher(db *mongo.Database, collection *mongo.Collection) (watcher 
 		Database:       db,
 		Collection:     collection,
 		WatchThreshold: 1000,
+
+		CtrlrCh: make(chan *Message, 1024),
 	}
 	return
 }
@@ -71,6 +75,7 @@ func (watcher *OplogWatcher) Run() (err error) {
 			continue
 		}
 		log.Println("Received oplog event", message, "with ResumeToken", collectionStream.ResumeToken())
+		watcher.CtrlrCh <- message
 
 		watcher.WatchCount += 1
 		if !watcher.ShouldContinueProcessing() {

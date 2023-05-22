@@ -28,7 +28,8 @@ type (
 		db                *mongo.Database
 		collections       []*mongo.Collection
 
-		closeCh chan bool
+		controllers []*Controller
+		closeCh     chan bool
 	}
 	MongoConfig struct {
 		Username string `json:"username"`
@@ -158,13 +159,13 @@ func (oplogCtx *Oplog) Run() (err error) {
 	}
 	for _, collection := range oplogCtx.collections {
 		var (
-			watcher *OplogWatcher
+			ctrlr *Controller
 		)
-		if watcher, err = NewOplogWatcher(oplogCtx.db, collection); err != nil {
+		if ctrlr, err = NewController(oplogCtx.db, collection); err != nil {
 			log.Println(err)
 			continue
 		}
-		go watcher.Run()
+		go ctrlr.Run()
 	}
 	<-oplogCtx.closeCh
 	return

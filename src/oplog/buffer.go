@@ -63,6 +63,11 @@ func NewBufferConfig() (bufferConfig *BufferConfig, err error) {
 	return
 }
 
+func (buffer *Buffer) Length() (count int) {
+	count = len(buffer.store) - buffer.CurrFlushIdx
+	return
+}
+
 func (buffer *Buffer) Store(event interface{}) (err error) {
 	buffer.store = append(buffer.store, event)
 	return
@@ -74,7 +79,7 @@ func (buffer *Buffer) ShouldFlush() (shouldFlush bool) {
 		shouldFlush = true
 		return
 	}
-	if (len(buffer.store) - buffer.CurrFlushIdx) >= buffer.Config.CountThreshold {
+	if buffer.Length() >= buffer.Config.CountThreshold {
 		shouldFlush = true
 		return
 	}
