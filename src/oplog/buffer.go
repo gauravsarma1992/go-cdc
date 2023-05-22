@@ -3,7 +3,6 @@ package oplog
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"time"
 )
 
@@ -39,7 +38,6 @@ func NewBuffer(flusherFunc FlusherFunc) (buffer *Buffer, err error) {
 }
 
 func LogFlusherFunc(events []interface{}) (err error) {
-	log.Println("Flushing", events)
 	return
 }
 

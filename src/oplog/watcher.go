@@ -56,8 +56,6 @@ func (watcher *OplogWatcher) Run() (err error) {
 	)
 	matchStage := bson.D{{"$match", bson.D{{}}}}
 
-	log.Println("Starting watching oplog on", watcher.Database.Name())
-
 	if collectionStream, err = watcher.Collection.Watch(
 		context.TODO(),
 		mongo.Pipeline{matchStage},
@@ -74,7 +72,7 @@ func (watcher *OplogWatcher) Run() (err error) {
 			log.Println("Failed to convert raw message to bytes", err)
 			continue
 		}
-		log.Println("Received oplog event", message, "with ResumeToken", collectionStream.ResumeToken())
+		// log.Println("Received oplog event", message, "with ResumeToken", collectionStream.ResumeToken())
 		watcher.CtrlrCh <- message
 
 		watcher.WatchCount += 1

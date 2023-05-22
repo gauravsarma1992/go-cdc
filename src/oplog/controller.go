@@ -42,7 +42,6 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 	for {
 		select {
 		case msg := <-ctrlr.watcher.CtrlrCh:
-			log.Println("Message received in controller", msg)
 			if err = ctrlr.buffer.Store(msg); err != nil {
 				log.Println("Error on storing message in buffer", msg, err)
 			}

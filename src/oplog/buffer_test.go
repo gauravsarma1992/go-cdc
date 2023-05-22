@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ func TestBuffer(t *testing.T) {
 }
 
 var _ = Describe("Buffer", func() {
+	log.Println("Buffer test Suite")
 	Describe("Buffer Initialisation", func() {
 		buffer, err := NewBuffer(LogFlusherFunc)
 		It("ensures no error", func() { Expect(err).To(BeNil()) })

@@ -2,6 +2,7 @@ package oplog
 
 import (
 	"context"
+	"log"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ func TestController(t *testing.T) {
 }
 
 var _ = Describe("Controller", func() {
+	log.Println("Controller test Suite")
 	var (
 		newOplog *Oplog
 		newCtrlr *Controller

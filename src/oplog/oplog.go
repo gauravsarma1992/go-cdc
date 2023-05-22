@@ -145,7 +145,6 @@ func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[stri
 	}
 
 	db = client.Database(mongoConfig.DbName)
-	log.Println("Connected to database - ", db.Name())
 
 	for _, oplogCollection := range oplogCtx.oplogConfig.Collections {
 		var (
@@ -153,8 +152,6 @@ func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[stri
 		)
 		currCollection = db.Collection(oplogCollection.Name)
 		collection[oplogCollection.Name] = currCollection
-
-		log.Println("Adding srcCollections - ", currCollection.Name())
 	}
 	return
 }

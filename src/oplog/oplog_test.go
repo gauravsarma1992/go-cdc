@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -14,6 +15,8 @@ func TestOplog(t *testing.T) {
 }
 
 var _ = Describe("Oplog", func() {
+	log.Println("Oplog test Suite")
+
 	Describe("Oplog initialisation", func() {
 		var (
 			newOplog *Oplog

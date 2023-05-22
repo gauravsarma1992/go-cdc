@@ -2,6 +2,7 @@ package oplog
 
 import (
 	"context"
+	"log"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -20,6 +21,8 @@ func TestWatcher(t *testing.T) {
 }
 
 var _ = Describe("Watcher", func() {
+	log.Println("Watcher test Suite")
+
 	Describe("Watcher initialisation", func() {
 		var (
 			newOplog   *Oplog
