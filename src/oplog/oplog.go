@@ -21,12 +21,17 @@ const (
 
 type (
 	Oplog struct {
-		noOfWorkers       uint8
-		oplogConfig       *OplogConfig
+		noOfWorkers uint8
+		oplogConfig *OplogConfig
+
 		sourceMongoConfig *MongoConfig
 		destMongoConfig   *MongoConfig
-		db                *mongo.Database
-		collections       []*mongo.Collection
+
+		srcDb          *mongo.Database
+		srcCollections map[string]*mongo.Collection
+
+		dstDb          *mongo.Database
+		dstCollections map[string]*mongo.Collection
 
 		controllers []*Controller
 		closeCh     chan bool
@@ -50,8 +55,10 @@ type (
 
 func New() (oplogCtx *Oplog, err error) {
 	oplogCtx = &Oplog{
-		noOfWorkers: 4,
-		closeCh:     make(chan bool),
+		noOfWorkers:    4,
+		srcCollections: make(map[string]*mongo.Collection),
+		dstCollections: make(map[string]*mongo.Collection),
+		closeCh:        make(chan bool),
 	}
 	if oplogCtx.oplogConfig, err = NewOplogConfig(); err != nil {
 		return
@@ -125,11 +132,11 @@ func (sourceMongoConfig *MongoConfig) GetUrl() (url string) {
 	return
 }
 
-func (oplogCtx *Oplog) Connect() (err error) {
+func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[string]*mongo.Collection) (db *mongo.Database, err error) {
 	var (
 		client *mongo.Client
 	)
-	client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(oplogCtx.sourceMongoConfig.GetUrl()))
+	client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(mongoConfig.GetUrl()))
 	if err != nil {
 		panic(err)
 	}
@@ -137,19 +144,28 @@ func (oplogCtx *Oplog) Connect() (err error) {
 		return
 	}
 
-	oplogCtx.db = client.Database(oplogCtx.sourceMongoConfig.DbName)
-	log.Println("Connected to database - ", oplogCtx.db.Name())
+	db = client.Database(mongoConfig.DbName)
+	log.Println("Connected to database - ", db.Name())
 
 	for _, oplogCollection := range oplogCtx.oplogConfig.Collections {
 		var (
 			currCollection *mongo.Collection
 		)
-		currCollection = oplogCtx.db.Collection(oplogCollection.Name)
-		oplogCtx.collections = append(oplogCtx.collections, currCollection)
+		currCollection = db.Collection(oplogCollection.Name)
+		collection[oplogCollection.Name] = currCollection
 
-		log.Println("Adding collections - ", currCollection.Name())
+		log.Println("Adding srcCollections - ", currCollection.Name())
 	}
+	return
+}
 
+func (oplogCtx *Oplog) Connect() (err error) {
+	if oplogCtx.srcDb, err = oplogCtx.connectToDb(oplogCtx.sourceMongoConfig, oplogCtx.srcCollections); err != nil {
+		return
+	}
+	if oplogCtx.dstDb, err = oplogCtx.connectToDb(oplogCtx.destMongoConfig, oplogCtx.dstCollections); err != nil {
+		return
+	}
 	return
 }
 
@@ -157,11 +173,11 @@ func (oplogCtx *Oplog) Run() (err error) {
 	if err = oplogCtx.Connect(); err != nil {
 		return
 	}
-	for _, collection := range oplogCtx.collections {
+	for collName, _ := range oplogCtx.srcCollections {
 		var (
 			ctrlr *Controller
 		)
-		if ctrlr, err = NewController(oplogCtx.db, collection); err != nil {
+		if ctrlr, err = NewController(oplogCtx.srcDb, oplogCtx.srcCollections[collName], oplogCtx.dstDb, oplogCtx.dstCollections[collName]); err != nil {
 			log.Println(err)
 			continue
 		}

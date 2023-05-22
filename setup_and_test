@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cd src/oplog
+go test -v
+cd -

@@ -22,7 +22,12 @@ var _ = Describe("Controller", func() {
 	)
 	newOplog, _ = New()
 	err = newOplog.Connect()
-	newCtrlr, err = NewController(newOplog.db, newOplog.collections[0])
+	newCtrlr, err = NewController(
+		newOplog.srcDb,
+		newOplog.srcCollections["coll_one"],
+		newOplog.dstDb,
+		newOplog.dstCollections["coll_one"],
+	)
 	newCtrlr.watcher.WatchThreshold = 2
 	newCtrlr.watcher.ShouldHonorWatchThreshold = true
 

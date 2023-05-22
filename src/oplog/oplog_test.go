@@ -47,8 +47,8 @@ var _ = Describe("Oplog", func() {
 		err = newOplog.Connect()
 		Context("when connecting to mongo", func() {
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
-			It("ensures db name is set", func() { Expect(newOplog.db.Name()).To(Equal("dev")) })
-			It("ensures collections are provided", func() { Expect(len(newOplog.collections)).ToNot(Equal(0)) })
+			It("ensures db name is set", func() { Expect(newOplog.srcDb.Name()).To(Equal("dev")) })
+			It("ensures collections are provided", func() { Expect(len(newOplog.srcCollections)).ToNot(Equal(0)) })
 		})
 	})
 

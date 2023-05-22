@@ -11,20 +11,25 @@ type (
 		// Controller is the sole entity responsible for coordinating
 		// between the watcher, buffer and managing the bookmarks.
 		// It runs in the scope of the collection.
-		Database   *mongo.Database
-		Collection *mongo.Collection
+		SourceDatabase   *mongo.Database
+		SourceCollection *mongo.Collection
+
+		DestDatabase   *mongo.Database
+		DestCollection *mongo.Collection
 
 		watcher *OplogWatcher
 		buffer  *Buffer
 	}
 )
 
-func NewController(db *mongo.Database, collection *mongo.Collection) (ctrlr *Controller, err error) {
+func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mongo.Database, dstColl *mongo.Collection) (ctrlr *Controller, err error) {
 	ctrlr = &Controller{
-		Database:   db,
-		Collection: collection,
+		SourceDatabase:   srcDb,
+		SourceCollection: srcColl,
+		DestDatabase:     dstDb,
+		DestCollection:   dstColl,
 	}
-	if ctrlr.watcher, err = NewOplogWatcher(db, collection); err != nil {
+	if ctrlr.watcher, err = NewOplogWatcher(srcDb, srcColl); err != nil {
 		return
 	}
 	if ctrlr.buffer, err = NewBuffer(LogFlusherFunc); err != nil {
