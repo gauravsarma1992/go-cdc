@@ -36,8 +36,13 @@ var _ = Describe("Controller", func() {
 	go func() {
 		time.Sleep(1 * time.Second)
 		person := &PersonTest{Name: "Gary"}
-		newCtrlr.watcher.Collection.InsertOne(context.TODO(), person)
-		newCtrlr.watcher.Collection.InsertOne(context.TODO(), person)
+		if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
+			log.Println(err)
+		}
+		time.Sleep(1 * time.Second)
+		if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
+			log.Println(err)
+		}
 	}()
 	newCtrlr.Run()
 

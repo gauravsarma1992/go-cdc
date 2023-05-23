@@ -19,6 +19,8 @@ type (
 
 		watcher *OplogWatcher
 		buffer  *Buffer
+
+		trackerCloseCh chan bool
 	}
 )
 
@@ -28,6 +30,8 @@ func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mong
 		SourceCollection: srcColl,
 		DestDatabase:     dstDb,
 		DestCollection:   dstColl,
+
+		trackerCloseCh: make(chan bool),
 	}
 	if ctrlr.watcher, err = NewOplogWatcher(srcDb, srcColl); err != nil {
 		return
@@ -41,6 +45,9 @@ func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mong
 func (ctrlr *Controller) trackWatcherMessages() (err error) {
 	for {
 		select {
+		case <-ctrlr.trackerCloseCh:
+			log.Println("Close signal received")
+			return
 		case msg := <-ctrlr.watcher.CtrlrCh:
 			if err = ctrlr.buffer.Store(msg); err != nil {
 				log.Println("Error on storing message in buffer", msg, err)
@@ -60,5 +67,6 @@ func (ctrlr *Controller) Run() (err error) {
 	if err = ctrlr.watcher.Run(); err != nil {
 		log.Println(err)
 	}
+	ctrlr.trackerCloseCh <- true
 	return
 }

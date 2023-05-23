@@ -163,6 +163,9 @@ func (oplogCtx *Oplog) Connect() (err error) {
 	if oplogCtx.dstDb, err = oplogCtx.connectToDb(oplogCtx.destMongoConfig, oplogCtx.dstCollections); err != nil {
 		return
 	}
+	for _, coll := range oplogCtx.dstCollections {
+		coll.Drop(context.TODO())
+	}
 	return
 }
 
