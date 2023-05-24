@@ -27,11 +27,12 @@ var _ = Describe("QueryGenerator", func() {
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 
 		message.OperationType = "update"
+		message.FullDocument["age"] = "32"
 		err = newQueryGen.Process(message)
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 
-		//message.OperationType = "update"
-		//err = newQueryGen.Process(message)
-		//It("ensures no error", func() { Expect(err).To(BeNil()) })
+		message.OperationType = "delete"
+		err = newQueryGen.Process(message)
+		It("ensures no error", func() { Expect(err).To(BeNil()) })
 	})
 })

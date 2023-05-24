@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -50,12 +51,12 @@ func (queryGen *QueryGenerator) Insert(msg *Message) (err error) {
 }
 
 func (queryGen *QueryGenerator) Update(msg *Message) (err error) {
-	//_, err = queryGen.Collection.UpdateOne(context.TODO(), bson.D{{"_id", msg.FullDocument["_id"]}}, msg.FullDocument)
+	_, err = queryGen.Collection.UpdateOne(context.TODO(), bson.D{{"_id", msg.FullDocument["_id"]}}, bson.D{{"$set", msg.FullDocument}})
 	return
 }
 
 func (queryGen *QueryGenerator) Delete(msg *Message) (err error) {
-	//_, err = queryGen.Collection.DeleteOne(context.TODO(), bson.D{{"_id", msg.FullDocument["_id"]}})
+	_, err = queryGen.Collection.DeleteOne(context.TODO(), bson.D{{"_id", msg.FullDocument["_id"]}})
 	return
 }
 
