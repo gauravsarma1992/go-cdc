@@ -34,10 +34,13 @@ func NewOplogWatcher(db *mongo.Database, collection *mongo.Collection) (watcher 
 	return
 }
 
-func (watcher *OplogWatcher) getStreamOpts() (opts *options.ChangeStreamOptions) {
+func (watcher *OplogWatcher) getStreamOpts(resumeToken *ResumeToken) (opts *options.ChangeStreamOptions) {
 	opts = options.ChangeStream()
 	opts.SetMaxAwaitTime(2 * time.Second)
 	opts.SetFullDocument(options.UpdateLookup)
+	if resumeToken.Data != "" {
+		opts.SetResumeAfter(resumeToken)
+	}
 	return
 }
 
@@ -50,7 +53,7 @@ func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 	return
 }
 
-func (watcher *OplogWatcher) Run() (err error) {
+func (watcher *OplogWatcher) Run(resumeToken *ResumeToken) (err error) {
 	var (
 		collectionStream *mongo.ChangeStream
 	)
@@ -59,7 +62,7 @@ func (watcher *OplogWatcher) Run() (err error) {
 	if collectionStream, err = watcher.Collection.Watch(
 		context.TODO(),
 		mongo.Pipeline{matchStage},
-		watcher.getStreamOpts(),
+		watcher.getStreamOpts(resumeToken),
 	); err != nil {
 		log.Println(err)
 		return

@@ -11,9 +11,9 @@ const (
 )
 
 type (
-	FlusherFunc func([]interface{}) error
+	FlusherFunc func([]*Message) error
 	Buffer      struct {
-		store         []interface{}
+		store         []*Message
 		LastFlushedAt time.Time
 		CurrFlushIdx  int
 		Config        *BufferConfig
@@ -37,7 +37,7 @@ func NewBuffer(flusherFunc FlusherFunc) (buffer *Buffer, err error) {
 	return
 }
 
-func LogFlusherFunc(events []interface{}) (err error) {
+func LogFlusherFunc(events []*Message) (err error) {
 	return
 }
 
@@ -66,7 +66,7 @@ func (buffer *Buffer) Length() (count int) {
 	return
 }
 
-func (buffer *Buffer) Store(event interface{}) (err error) {
+func (buffer *Buffer) Store(event *Message) (err error) {
 	buffer.store = append(buffer.store, event)
 	return
 }
@@ -86,16 +86,16 @@ func (buffer *Buffer) ShouldFlush() (shouldFlush bool) {
 
 func (buffer *Buffer) Rollover() (err error) {
 	if len(buffer.store) > buffer.Config.RolloverThreshold {
-		buffer.store = make([]interface{}, 0)
+		buffer.store = make([]*Message, 0)
 		buffer.LastFlushedAt = time.Now()
 		buffer.CurrFlushIdx = 0
 	}
 	return
 }
 
-func (buffer *Buffer) Flush() (err error) {
+func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeToken, err error) {
 	var (
-		events []interface{}
+		events []*Message
 	)
 	for idx := 0; idx < len(buffer.store); idx++ {
 		events = append(events, buffer.store[idx])
@@ -103,6 +103,7 @@ func (buffer *Buffer) Flush() (err error) {
 	if err = buffer.Flusher(events); err != nil {
 		return
 	}
+	lastFlushedResumeToken = events[len(events)-1].ResumeToken
 	buffer.CurrFlushIdx = len(buffer.store)
 	buffer.LastFlushedAt = time.Now()
 

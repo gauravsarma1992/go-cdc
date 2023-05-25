@@ -15,12 +15,9 @@ func TestController(t *testing.T) {
 	RunSpecs(t, "Controller test Suite")
 }
 
-var _ = Describe("Controller", func() {
-	log.Println("Controller test Suite")
+func GetTestController() (newCtrlr *Controller, err error) {
 	var (
 		newOplog *Oplog
-		newCtrlr *Controller
-		err      error
 	)
 	newOplog, _ = New()
 	err = newOplog.Connect()
@@ -33,19 +30,34 @@ var _ = Describe("Controller", func() {
 	newCtrlr.watcher.WatchThreshold = 2
 	newCtrlr.watcher.ShouldHonorWatchThreshold = true
 
-	go func() {
-		time.Sleep(1 * time.Second)
-		person := &PersonTest{Name: "Gary"}
-		if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
-			log.Println(err)
-		}
-		time.Sleep(1 * time.Second)
-		if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
-			log.Println(err)
-		}
-	}()
-	newCtrlr.Run()
+	return
+}
 
-	It("ensures no error", func() { Expect(err).To(BeNil()) })
-	It("checks buffer's length", func() { Expect(newCtrlr.buffer.Length()).To(Equal(2)) })
+var _ = Describe("Controller", func() {
+	log.Println("Controller test Suite")
+
+	Describe("Controller loop", func() {
+		var (
+			newCtrlr *Controller
+			err      error
+		)
+		newCtrlr, err = GetTestController()
+
+		go func() {
+			time.Sleep(1 * time.Second)
+			person := &PersonTest{Name: "Gary"}
+			if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
+				log.Println(err)
+			}
+			time.Sleep(1 * time.Second)
+			if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
+				log.Println(err)
+			}
+		}()
+		newCtrlr.Run()
+
+		It("ensures no error", func() { Expect(err).To(BeNil()) })
+		It("checks buffer's length", func() { Expect(newCtrlr.buffer.Length()).To(Equal(2)) })
+	})
+
 })

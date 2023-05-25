@@ -11,13 +11,13 @@ All the config files are present in `src/oplog/config` folder
 
 ## To run the suite
 ```bash
-./setup_and_run
-./setup_and_test
+./setup_and_run # Runs the mongo container and the mongoreplay container
+./setup_and_test # Runs the test suite
 ```
 
 
-## TODO
+## TODO (sorted based on descending priority)
+- Resume using resume token
 - Filtering based on collection attributes
 - Reading data from snapshot in the beginning
-- Resume using resume token
 - Proper shutdown of the concurrent contexts

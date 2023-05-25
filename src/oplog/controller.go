@@ -1,9 +1,15 @@
 package oplog
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 
 	"go.mongodb.org/mongo-driver/mongo"
+)
+
+const (
+	LastUpdatedResumeFile = "/tmp/last-updated-resume-token"
 )
 
 type (
@@ -42,6 +48,34 @@ func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mong
 	return
 }
 
+func (ctrlr *Controller) updateLastResumeToken(resumeToken *ResumeToken) (err error) {
+	var (
+		resumeB []byte
+	)
+	log.Println("updateLastResumeToken")
+	if resumeB, err = json.Marshal(resumeToken); err != nil {
+		return
+	}
+	if err = ioutil.WriteFile(LastUpdatedResumeFile, resumeB, 0755); err != nil {
+		return
+	}
+	return
+}
+
+func (ctrlr *Controller) getLastResumeTokenFromStore() (resumeToken *ResumeToken, err error) {
+	var (
+		resumeB []byte
+	)
+	resumeToken = &ResumeToken{}
+	if resumeB, err = ioutil.ReadFile(LastUpdatedResumeFile); err != nil {
+		return
+	}
+	if err = json.Unmarshal(resumeB, resumeToken); err != nil {
+		return
+	}
+	return
+}
+
 func (ctrlr *Controller) trackWatcherMessages() (err error) {
 	for {
 		select {
@@ -49,22 +83,34 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 			log.Println("Close signal received")
 			return
 		case msg := <-ctrlr.watcher.CtrlrCh:
+			var (
+				lastResumeToken *ResumeToken
+			)
 			if err = ctrlr.buffer.Store(msg); err != nil {
 				log.Println("Error on storing message in buffer", msg, err)
 			}
 			if !ctrlr.buffer.ShouldFlush() {
 				continue
 			}
-			if err = ctrlr.buffer.Flush(); err != nil {
+			if lastResumeToken, err = ctrlr.buffer.Flush(); err != nil {
 				log.Println("Error on flushing messages in buffer", err)
+			}
+			if err = ctrlr.updateLastResumeToken(lastResumeToken); err != nil {
+				log.Println(err)
+				return
 			}
 		}
 	}
 }
 
 func (ctrlr *Controller) Run() (err error) {
+	var (
+		lastResumeToken *ResumeToken
+	)
+	lastResumeToken, _ = ctrlr.getLastResumeTokenFromStore()
 	go ctrlr.trackWatcherMessages()
-	if err = ctrlr.watcher.Run(); err != nil {
+
+	if err = ctrlr.watcher.Run(lastResumeToken); err != nil {
 		log.Println(err)
 	}
 	ctrlr.trackerCloseCh <- true
