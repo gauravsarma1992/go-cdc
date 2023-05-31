@@ -1,4 +1,4 @@
-module github.com/go-cdc
+module github.com/gauravsarma1992/mongoreplay
 
 go 1.19
 
@@ -7,7 +7,6 @@ require (
 	github.com/onsi/gomega v1.27.6
 	github.com/stretchr/testify v1.8.2
 	go.mongodb.org/mongo-driver v1.11.6
-	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 )
 
 require (
@@ -31,6 +30,5 @@ require (
 	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.8.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
