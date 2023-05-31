@@ -2,17 +2,11 @@ package oplog
 
 import (
 	"log"
-	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-func TestBuffer(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Buffer test Suite")
-}
 
 var _ = Describe("Buffer", func() {
 	log.Println("Buffer test Suite")

@@ -2,16 +2,10 @@ package oplog
 
 import (
 	"log"
-	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-func TestQueryGenerator(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "QueryGenerator test Suite")
-}
 
 var _ = Describe("QueryGenerator", func() {
 	log.Println("QueryGenerator test Suite")

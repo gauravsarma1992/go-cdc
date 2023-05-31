@@ -2,6 +2,7 @@ package oplog
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -50,6 +51,34 @@ func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 		return
 	}
 	shouldContinue = true
+	return
+}
+
+func (watcher *OplogWatcher) FetchFromOplog() (err error) {
+	var (
+		oplogCollection *mongo.Collection
+		findOptions     *options.FindOptions
+		cursor          *mongo.Cursor
+		ns              string
+		results         []bson.M
+	)
+	ns = fmt.Sprintf("%s.%s", watcher.Database.Name(), watcher.Collection.Name())
+
+	findOptions = options.Find()
+	findOptions.SetLimit(10)
+
+	oplogCollection = watcher.Database.Client().Database("local").Collection("oplog.rs")
+	if cursor, err = (oplogCollection.Find(context.TODO(), bson.D{{"ns", ns}}, findOptions)); err != nil {
+		return
+	}
+
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		log.Println(err)
+	}
+
+	for _, result := range results {
+		log.Println("loping", result["o"], result["ts"])
+	}
 	return
 }
 

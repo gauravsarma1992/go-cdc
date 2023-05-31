@@ -2,17 +2,11 @@ package oplog
 
 import (
 	"log"
-	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-func TestOplog(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Oplog test Suite")
-}
 
 var _ = Describe("Oplog", func() {
 	log.Println("Oplog test Suite")
