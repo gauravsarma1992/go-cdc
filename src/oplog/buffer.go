@@ -3,7 +3,6 @@ package oplog
 import (
 	"encoding/json"
 	"io/ioutil"
-	"strconv"
 	"time"
 )
 
@@ -94,7 +93,7 @@ func (buffer *Buffer) Rollover() (err error) {
 	return
 }
 
-func (buffer *Buffer) Flush() (lastFlushedResumeToken string, err error) {
+func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeTokenStore, err error) {
 	var (
 		events []*MessageN
 	)
@@ -104,7 +103,9 @@ func (buffer *Buffer) Flush() (lastFlushedResumeToken string, err error) {
 	if err = buffer.Flusher(events); err != nil {
 		return
 	}
-	lastFlushedResumeToken = strconv.Itoa(int(events[len(events)-1].Timestamp.T))
+	lastFlushedResumeToken = &ResumeTokenStore{}
+	lastFlushedResumeToken.Timestamp = events[len(events)-1].Timestamp
+
 	buffer.CurrFlushIdx = len(buffer.store)
 	buffer.LastFlushedAt = time.Now()
 

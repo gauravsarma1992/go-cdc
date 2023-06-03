@@ -2,6 +2,7 @@ package oplog
 
 import (
 	"log"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -14,7 +15,7 @@ func GetDummyMessage() (message *MessageN) {
 		CollectionPath: "dev.coll_one",
 		FullDocument:   bson.M{"name": "gary"},
 		OperationType:  "i",
-		Timestamp:      primitive.Timestamp{T: 1684563044, I: 1},
+		Timestamp:      primitive.Timestamp{T: uint32(time.Now().Unix()), I: 1},
 	}
 	return
 }
@@ -25,8 +26,5 @@ var _ = Describe("Message", func() {
 	message := GetDummyMessage()
 
 	It("ensures message is not nil", func() { Expect(message).ToNot(BeNil()) })
-	It("ensures message has resume token", func() {
-		Expect(int(message.Timestamp.T)).To(Equal(1684563044))
-	})
 	It("ensures message has ns", func() { Expect(message.CollectionPath).To(Equal("dev.coll_one")) })
 })

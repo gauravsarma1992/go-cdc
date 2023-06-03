@@ -5,11 +5,12 @@ import (
 	"io/ioutil"
 	"log"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
-	LastUpdatedResumeFile = "/tmp/last-updated-resume-token"
+	LastUpdatedResumeFile = "last-updated-resume-token"
 )
 
 type (
@@ -27,6 +28,10 @@ type (
 		buffer  *Buffer
 
 		trackerCloseCh chan bool
+	}
+
+	ResumeTokenStore struct {
+		Timestamp primitive.Timestamp `json:"timestamp"`
 	}
 )
 
@@ -48,7 +53,7 @@ func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mong
 	return
 }
 
-func (ctrlr *Controller) updateLastResumeToken(resumeToken string) (err error) {
+func (ctrlr *Controller) updateLastResumeToken(resumeToken *ResumeTokenStore) (err error) {
 	var (
 		resumeB []byte
 	)
@@ -61,7 +66,7 @@ func (ctrlr *Controller) updateLastResumeToken(resumeToken string) (err error) {
 	return
 }
 
-func (ctrlr *Controller) getLastResumeTokenFromStore() (resumeToken string, err error) {
+func (ctrlr *Controller) getLastResumeTokenFromStore() (resumeToken *ResumeTokenStore, err error) {
 	var (
 		resumeB []byte
 	)
@@ -82,7 +87,7 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 			return
 		case msg := <-ctrlr.watcher.CtrlrCh:
 			var (
-				lastResumeToken string
+				lastResumeToken *ResumeTokenStore
 			)
 			if err = ctrlr.buffer.Store(msg); err != nil {
 				log.Println("Error on storing message in buffer", msg, err)
@@ -103,7 +108,7 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 
 func (ctrlr *Controller) Run() (err error) {
 	var (
-		lastResumeToken string
+		lastResumeToken *ResumeTokenStore
 	)
 	lastResumeToken, _ = ctrlr.getLastResumeTokenFromStore()
 	go ctrlr.trackWatcherMessages()

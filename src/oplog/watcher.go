@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -39,14 +38,6 @@ func NewOplogWatcher(db *mongo.Database, collection *mongo.Collection) (watcher 
 	return
 }
 
-func (watcher *OplogWatcher) getStreamOpts(resumeToken string) (opts *options.ChangeStreamOptions) {
-	opts = options.ChangeStream()
-	opts.SetMaxAwaitTime(2 * time.Second)
-	opts.SetFullDocument(options.UpdateLookup)
-	//opts.SetResumeAfter(resumeToken.Data)
-	return
-}
-
 func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 	if watcher.ShouldHonorWatchThreshold == true && watcher.WatchCount >= watcher.WatchThreshold {
 		log.Println("Exiting to honor WatchThreshold")
@@ -56,7 +47,7 @@ func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 	return
 }
 
-func (watcher *OplogWatcher) FetchFromOplog() (messages []*MessageN, err error) {
+func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (messages []*MessageN, err error) {
 	var (
 		oplogCollection *mongo.Collection
 		findOptions     *options.FindOptions
@@ -94,12 +85,12 @@ func (watcher *OplogWatcher) FetchFromOplog() (messages []*MessageN, err error) 
 	return
 }
 
-func (watcher *OplogWatcher) Run(resumeToken string) (err error) {
+func (watcher *OplogWatcher) Run(resumeToken *ResumeTokenStore) (err error) {
 	for {
 		var (
 			messages []*MessageN
 		)
-		if messages, err = watcher.FetchFromOplog(); err != nil {
+		if messages, err = watcher.FetchFromOplog(resumeToken); err != nil {
 			log.Println(err)
 		}
 		watcher.WatchCount += len(messages)

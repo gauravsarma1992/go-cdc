@@ -35,7 +35,7 @@ var _ = Describe("Watcher", func() {
 				person := &PersonTest{Name: "Gary"}
 				newWatcher.Collection.InsertOne(context.TODO(), person)
 			}()
-			newWatcher.Run("")
+			newWatcher.Run(&ResumeTokenStore{})
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
 			It("ensures only 1 oplog entry", func() { Expect(newWatcher.WatchCount).To(Equal(1)) })
 		})
@@ -45,7 +45,7 @@ var _ = Describe("Watcher", func() {
 		var (
 			messages []*MessageN
 		)
-		messages, err = newWatcher.FetchFromOplog()
+		messages, err = newWatcher.FetchFromOplog(&ResumeTokenStore{})
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 		It("ensures message length", func() { Expect(len(messages)).To(BeNumerically("==", 1)) })
 	})
