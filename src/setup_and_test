@@ -1,5 +1,5 @@
 #!/bin/bash
 
-cd src/oplog
+cd oplog
 go test -v
 cd -

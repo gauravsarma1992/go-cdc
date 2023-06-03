@@ -2,6 +2,8 @@ package oplog
 
 import (
 	"encoding/json"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type (
@@ -19,6 +21,13 @@ type (
 	MessageNs struct {
 		DbName         string `json:"db"`
 		CollectionName string `json:"coll"`
+	}
+
+	MessageN struct {
+		CollectionPath string                 `json:"ns"`
+		FullDocument   map[string]interface{} `json:"o"`
+		Operation      string                 `json:"op"`
+		Timestamp      primitive.Timestamp    `json:"ts"`
 	}
 )
 

@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"context"
 	"log"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -28,18 +29,23 @@ var _ = Describe("Watcher", func() {
 	newWatcher.WatchThreshold = 1
 
 	Describe("Watcher initialisation", func() {
-		//Describe("when default settings are used", func() {
-		//	go func() {
-		//		person := &PersonTest{Name: "Gary"}
-		//		newWatcher.Collection.InsertOne(context.TODO(), person)
-		//	}()
-		//	newWatcher.Run()
-		//	It("ensures no error", func() { Expect(err).To(BeNil()) })
-		//	It("ensures only 1 oplog entry", func() { Expect(newWatcher.WatchCount).To(Equal(1)) })
-		//})
+		Describe("when default settings are used", func() {
+			go func() {
+				person := &PersonTest{Name: "Gary"}
+				newWatcher.Collection.InsertOne(context.TODO(), person)
+			}()
+			newWatcher.Run(nil)
+			It("ensures no error", func() { Expect(err).To(BeNil()) })
+			It("ensures only 1 oplog entry", func() { Expect(newWatcher.WatchCount).To(Equal(1)) })
+		})
 	})
 
 	Describe("Fetching oplogs", func() {
+		var (
+			messages []*MessageN
+		)
+		messages, err = newWatcher.FetchFromOplog()
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
+		It("ensures message length", func() { Expect(len(messages)).To(BeNumerically(">", 1)) })
 	})
 })

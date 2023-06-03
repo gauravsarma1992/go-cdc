@@ -2,20 +2,24 @@ package oplog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type (
 	OplogWatcher struct {
-		Database                  *mongo.Database
-		Collection                *mongo.Collection
-		Bookmark                  string
+		Database   *mongo.Database
+		Collection *mongo.Collection
+
+		FetchCountThreshold int
+
 		WatchThreshold            int
 		WatchCount                int
 		ShouldHonorWatchThreshold bool
@@ -26,9 +30,10 @@ type (
 
 func NewOplogWatcher(db *mongo.Database, collection *mongo.Collection) (watcher *OplogWatcher, err error) {
 	watcher = &OplogWatcher{
-		Database:       db,
-		Collection:     collection,
-		WatchThreshold: 1000,
+		Database:            db,
+		Collection:          collection,
+		WatchThreshold:      1000,
+		FetchCountThreshold: 1000,
 
 		CtrlrCh: make(chan *Message, 1024),
 	}
@@ -39,8 +44,10 @@ func (watcher *OplogWatcher) getStreamOpts(resumeToken *ResumeToken) (opts *opti
 	opts = options.ChangeStream()
 	opts.SetMaxAwaitTime(2 * time.Second)
 	opts.SetFullDocument(options.UpdateLookup)
-	if resumeToken.Data != "" {
-		opts.SetResumeAfter(resumeToken)
+	if resumeToken != nil && resumeToken.Data != "" {
+		tokenB, _ := json.Marshal(resumeToken)
+		log.Println("Resuming from token", string(tokenB))
+		//opts.SetResumeAfter(resumeToken.Data)
 	}
 	return
 }
@@ -54,7 +61,7 @@ func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 	return
 }
 
-func (watcher *OplogWatcher) FetchFromOplog() (err error) {
+func (watcher *OplogWatcher) FetchFromOplog() (messages []*MessageN, err error) {
 	var (
 		oplogCollection *mongo.Collection
 		findOptions     *options.FindOptions
@@ -65,7 +72,7 @@ func (watcher *OplogWatcher) FetchFromOplog() (err error) {
 	ns = fmt.Sprintf("%s.%s", watcher.Database.Name(), watcher.Collection.Name())
 
 	findOptions = options.Find()
-	findOptions.SetLimit(10)
+	findOptions.SetLimit(int64(watcher.FetchCountThreshold))
 
 	oplogCollection = watcher.Database.Client().Database("local").Collection("oplog.rs")
 	if cursor, err = (oplogCollection.Find(context.TODO(), bson.D{{"ns", ns}}, findOptions)); err != nil {
@@ -77,7 +84,17 @@ func (watcher *OplogWatcher) FetchFromOplog() (err error) {
 	}
 
 	for _, result := range results {
-		log.Println("loping", result["o"], result["ts"])
+		var (
+			message *MessageN
+		)
+		message = &MessageN{
+			CollectionPath: result["ns"].(string),
+			FullDocument:   result["o"].(bson.M),
+			Operation:      result["op"].(string),
+			Timestamp:      result["ts"].(primitive.Timestamp),
+		}
+		messages = append(messages, message)
+		//log.Println("looping", result, result["o"], result["ts"].(primitive.Timestamp).T)
 	}
 	return
 }
