@@ -173,11 +173,15 @@ func (oplogCtx *Oplog) Run() (err error) {
 	if err = oplogCtx.Connect(); err != nil {
 		return
 	}
-	for collName, _ := range oplogCtx.srcCollections {
+	for collName := range oplogCtx.srcCollections {
 		var (
 			ctrlr *Controller
 		)
-		if ctrlr, err = NewController(oplogCtx.srcDb, oplogCtx.srcCollections[collName], oplogCtx.dstDb, oplogCtx.dstCollections[collName]); err != nil {
+		if ctrlr, err = NewController(oplogCtx.srcDb,
+			oplogCtx.srcCollections[collName],
+			oplogCtx.dstDb,
+			oplogCtx.dstCollections[collName],
+		); err != nil {
 			log.Println(err)
 			continue
 		}

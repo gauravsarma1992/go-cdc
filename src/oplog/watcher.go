@@ -61,7 +61,7 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 	findOptions.SetLimit(int64(watcher.FetchCountThreshold))
 
 	oplogCollection = watcher.Database.Client().Database("local").Collection("oplog.rs")
-	if cursor, err = (oplogCollection.Find(context.TODO(), bson.D{{"ns", ns}}, findOptions)); err != nil {
+	if cursor, err = oplogCollection.Find(context.TODO(), bson.M{"ns": ns, "ts": bson.M{"$gte": resumeToken.Timestamp}}, findOptions); err != nil {
 		return
 	}
 
@@ -86,13 +86,20 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 }
 
 func (watcher *OplogWatcher) Run(resumeToken *ResumeTokenStore) (err error) {
+	var (
+		currResumeToken *ResumeTokenStore
+	)
+	currResumeToken = resumeToken.Copy()
 	for {
 		var (
 			messages []*MessageN
 		)
-		if messages, err = watcher.FetchFromOplog(resumeToken); err != nil {
+		if messages, err = watcher.FetchFromOplog(currResumeToken); err != nil {
 			log.Println(err)
 		}
+		// Update the resume token to the latest timestamp
+		currResumeToken.Timestamp = messages[len(messages)-1].Timestamp
+
 		watcher.WatchCount += len(messages)
 		if watcher.ShouldHonorWatchThreshold == true && len(messages) >= watcher.WatchThreshold {
 			break

@@ -35,6 +35,13 @@ type (
 	}
 )
 
+func (resumeToken *ResumeTokenStore) Copy() (copied *ResumeTokenStore) {
+	copied = &ResumeTokenStore{
+		Timestamp: resumeToken.Timestamp,
+	}
+	return
+}
+
 func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mongo.Database, dstColl *mongo.Collection) (ctrlr *Controller, err error) {
 	ctrlr = &Controller{
 		SourceDatabase:   srcDb,
@@ -110,7 +117,9 @@ func (ctrlr *Controller) Run() (err error) {
 	var (
 		lastResumeToken *ResumeTokenStore
 	)
-	lastResumeToken, _ = ctrlr.getLastResumeTokenFromStore()
+	if lastResumeToken, err = ctrlr.getLastResumeTokenFromStore(); err != nil {
+		lastResumeToken = &ResumeTokenStore{}
+	}
 	go ctrlr.trackWatcherMessages()
 
 	if err = ctrlr.watcher.Run(lastResumeToken); err != nil {
