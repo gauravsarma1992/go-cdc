@@ -3,6 +3,7 @@ package oplog
 import (
 	"encoding/json"
 	"io/ioutil"
+	"strconv"
 	"time"
 )
 
@@ -11,9 +12,9 @@ const (
 )
 
 type (
-	FlusherFunc func([]*Message) error
+	FlusherFunc func([]*MessageN) error
 	Buffer      struct {
-		store         []*Message
+		store         []*MessageN
 		LastFlushedAt time.Time
 		CurrFlushIdx  int
 		Config        *BufferConfig
@@ -37,7 +38,7 @@ func NewBuffer(flusherFunc FlusherFunc) (buffer *Buffer, err error) {
 	return
 }
 
-func LogFlusherFunc(events []*Message) (err error) {
+func LogFlusherFunc(events []*MessageN) (err error) {
 	return
 }
 
@@ -66,7 +67,7 @@ func (buffer *Buffer) Length() (count int) {
 	return
 }
 
-func (buffer *Buffer) Store(event *Message) (err error) {
+func (buffer *Buffer) Store(event *MessageN) (err error) {
 	buffer.store = append(buffer.store, event)
 	return
 }
@@ -86,16 +87,16 @@ func (buffer *Buffer) ShouldFlush() (shouldFlush bool) {
 
 func (buffer *Buffer) Rollover() (err error) {
 	if len(buffer.store) > buffer.Config.RolloverThreshold {
-		buffer.store = make([]*Message, 0)
+		buffer.store = make([]*MessageN, 0)
 		buffer.LastFlushedAt = time.Now()
 		buffer.CurrFlushIdx = 0
 	}
 	return
 }
 
-func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeToken, err error) {
+func (buffer *Buffer) Flush() (lastFlushedResumeToken string, err error) {
 	var (
-		events []*Message
+		events []*MessageN
 	)
 	for idx := 0; idx < len(buffer.store); idx++ {
 		events = append(events, buffer.store[idx])
@@ -103,7 +104,7 @@ func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeToken, err error) {
 	if err = buffer.Flusher(events); err != nil {
 		return
 	}
-	lastFlushedResumeToken = events[len(events)-1].ResumeToken
+	lastFlushedResumeToken = strconv.Itoa(int(events[len(events)-1].Timestamp.T))
 	buffer.CurrFlushIdx = len(buffer.store)
 	buffer.LastFlushedAt = time.Now()
 

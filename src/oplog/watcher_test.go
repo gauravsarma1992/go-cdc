@@ -27,6 +27,7 @@ var _ = Describe("Watcher", func() {
 	newWatcher, err = NewOplogWatcher(newOplog.srcDb, newOplog.srcCollections["coll_one"])
 	newWatcher.ShouldHonorWatchThreshold = true
 	newWatcher.WatchThreshold = 1
+	newWatcher.FetchCountThreshold = 1
 
 	Describe("Watcher initialisation", func() {
 		Describe("when default settings are used", func() {
@@ -34,7 +35,7 @@ var _ = Describe("Watcher", func() {
 				person := &PersonTest{Name: "Gary"}
 				newWatcher.Collection.InsertOne(context.TODO(), person)
 			}()
-			newWatcher.Run(nil)
+			newWatcher.Run("")
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
 			It("ensures only 1 oplog entry", func() { Expect(newWatcher.WatchCount).To(Equal(1)) })
 		})
@@ -46,6 +47,6 @@ var _ = Describe("Watcher", func() {
 		)
 		messages, err = newWatcher.FetchFromOplog()
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
-		It("ensures message length", func() { Expect(len(messages)).To(BeNumerically(">", 1)) })
+		It("ensures message length", func() { Expect(len(messages)).To(BeNumerically("==", 1)) })
 	})
 })

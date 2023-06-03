@@ -2,7 +2,6 @@ package oplog
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -24,7 +23,7 @@ type (
 		WatchCount                int
 		ShouldHonorWatchThreshold bool
 
-		CtrlrCh chan *Message
+		CtrlrCh chan *MessageN
 	}
 )
 
@@ -35,20 +34,16 @@ func NewOplogWatcher(db *mongo.Database, collection *mongo.Collection) (watcher 
 		WatchThreshold:      1000,
 		FetchCountThreshold: 1000,
 
-		CtrlrCh: make(chan *Message, 1024),
+		CtrlrCh: make(chan *MessageN, 1024),
 	}
 	return
 }
 
-func (watcher *OplogWatcher) getStreamOpts(resumeToken *ResumeToken) (opts *options.ChangeStreamOptions) {
+func (watcher *OplogWatcher) getStreamOpts(resumeToken string) (opts *options.ChangeStreamOptions) {
 	opts = options.ChangeStream()
 	opts.SetMaxAwaitTime(2 * time.Second)
 	opts.SetFullDocument(options.UpdateLookup)
-	if resumeToken != nil && resumeToken.Data != "" {
-		tokenB, _ := json.Marshal(resumeToken)
-		log.Println("Resuming from token", string(tokenB))
-		//opts.SetResumeAfter(resumeToken.Data)
-	}
+	//opts.SetResumeAfter(resumeToken.Data)
 	return
 }
 
@@ -90,42 +85,25 @@ func (watcher *OplogWatcher) FetchFromOplog() (messages []*MessageN, err error) 
 		message = &MessageN{
 			CollectionPath: result["ns"].(string),
 			FullDocument:   result["o"].(bson.M),
-			Operation:      result["op"].(string),
+			OperationType:  result["op"].(string),
 			Timestamp:      result["ts"].(primitive.Timestamp),
 		}
+		watcher.CtrlrCh <- message
 		messages = append(messages, message)
-		//log.Println("looping", result, result["o"], result["ts"].(primitive.Timestamp).T)
 	}
 	return
 }
 
-func (watcher *OplogWatcher) Run(resumeToken *ResumeToken) (err error) {
-	var (
-		collectionStream *mongo.ChangeStream
-	)
-	matchStage := bson.D{{"$match", bson.D{{}}}}
-
-	if collectionStream, err = watcher.Collection.Watch(
-		context.TODO(),
-		mongo.Pipeline{matchStage},
-		watcher.getStreamOpts(resumeToken),
-	); err != nil {
-		log.Println(err)
-		return
-	}
-	for collectionStream.Next(context.TODO()) {
+func (watcher *OplogWatcher) Run(resumeToken string) (err error) {
+	for {
 		var (
-			message *Message
+			messages []*MessageN
 		)
-		if message, err = NewMessage(collectionStream.Current.String()); err != nil {
-			log.Println("Failed to convert raw message to bytes", err)
-			continue
+		if messages, err = watcher.FetchFromOplog(); err != nil {
+			log.Println(err)
 		}
-		// log.Println("Received oplog event", message, "with ResumeToken", collectionStream.ResumeToken())
-		watcher.CtrlrCh <- message
-
-		watcher.WatchCount += 1
-		if !watcher.ShouldContinueProcessing() {
+		watcher.WatchCount += len(messages)
+		if watcher.ShouldHonorWatchThreshold == true && len(messages) >= watcher.WatchThreshold {
 			break
 		}
 	}

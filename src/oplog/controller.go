@@ -48,11 +48,10 @@ func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mong
 	return
 }
 
-func (ctrlr *Controller) updateLastResumeToken(resumeToken *ResumeToken) (err error) {
+func (ctrlr *Controller) updateLastResumeToken(resumeToken string) (err error) {
 	var (
 		resumeB []byte
 	)
-	log.Println("updateLastResumeToken")
 	if resumeB, err = json.Marshal(resumeToken); err != nil {
 		return
 	}
@@ -62,11 +61,10 @@ func (ctrlr *Controller) updateLastResumeToken(resumeToken *ResumeToken) (err er
 	return
 }
 
-func (ctrlr *Controller) getLastResumeTokenFromStore() (resumeToken *ResumeToken, err error) {
+func (ctrlr *Controller) getLastResumeTokenFromStore() (resumeToken string, err error) {
 	var (
 		resumeB []byte
 	)
-	resumeToken = &ResumeToken{}
 	if resumeB, err = ioutil.ReadFile(LastUpdatedResumeFile); err != nil {
 		return
 	}
@@ -84,7 +82,7 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 			return
 		case msg := <-ctrlr.watcher.CtrlrCh:
 			var (
-				lastResumeToken *ResumeToken
+				lastResumeToken string
 			)
 			if err = ctrlr.buffer.Store(msg); err != nil {
 				log.Println("Error on storing message in buffer", msg, err)
@@ -105,7 +103,7 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 
 func (ctrlr *Controller) Run() (err error) {
 	var (
-		lastResumeToken *ResumeToken
+		lastResumeToken string
 	)
 	lastResumeToken, _ = ctrlr.getLastResumeTokenFromStore()
 	go ctrlr.trackWatcherMessages()

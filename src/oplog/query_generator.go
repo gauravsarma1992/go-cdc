@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	QueryFunc      func(*Message) error
+	QueryFunc      func(*MessageN) error
 	QueryGenerator struct {
 		Collection *mongo.Collection
 
@@ -28,13 +28,13 @@ func NewQueryGenerator(coll *mongo.Collection) (queryGen *QueryGenerator, err er
 }
 
 func (queryGen *QueryGenerator) prepareQueryMap() (err error) {
-	queryGen.queryMap["insert"] = queryGen.Insert
-	queryGen.queryMap["update"] = queryGen.Update
-	queryGen.queryMap["delete"] = queryGen.Delete
+	queryGen.queryMap["i"] = queryGen.Insert
+	queryGen.queryMap["u"] = queryGen.Update
+	queryGen.queryMap["d"] = queryGen.Delete
 	return
 }
 
-func (queryGen *QueryGenerator) routeQuery(msg *Message) (queryFunc QueryFunc, err error) {
+func (queryGen *QueryGenerator) routeQuery(msg *MessageN) (queryFunc QueryFunc, err error) {
 	var (
 		isPresent bool
 	)
@@ -45,22 +45,22 @@ func (queryGen *QueryGenerator) routeQuery(msg *Message) (queryFunc QueryFunc, e
 	return
 }
 
-func (queryGen *QueryGenerator) Insert(msg *Message) (err error) {
+func (queryGen *QueryGenerator) Insert(msg *MessageN) (err error) {
 	_, err = queryGen.Collection.InsertOne(context.TODO(), msg.FullDocument)
 	return
 }
 
-func (queryGen *QueryGenerator) Update(msg *Message) (err error) {
+func (queryGen *QueryGenerator) Update(msg *MessageN) (err error) {
 	_, err = queryGen.Collection.UpdateOne(context.TODO(), bson.D{{"_id", msg.FullDocument["_id"]}}, bson.D{{"$set", msg.FullDocument}})
 	return
 }
 
-func (queryGen *QueryGenerator) Delete(msg *Message) (err error) {
+func (queryGen *QueryGenerator) Delete(msg *MessageN) (err error) {
 	_, err = queryGen.Collection.DeleteOne(context.TODO(), bson.D{{"_id", msg.FullDocument["_id"]}})
 	return
 }
 
-func (queryGen *QueryGenerator) Process(msg *Message) (err error) {
+func (queryGen *QueryGenerator) Process(msg *MessageN) (err error) {
 	var (
 		queryFunc QueryFunc
 	)

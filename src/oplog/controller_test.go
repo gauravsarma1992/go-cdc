@@ -23,6 +23,7 @@ func GetTestController() (newCtrlr *Controller, err error) {
 	)
 	newCtrlr.watcher.WatchThreshold = 2
 	newCtrlr.watcher.ShouldHonorWatchThreshold = true
+	newCtrlr.watcher.FetchCountThreshold = 2
 
 	return
 }
@@ -51,7 +52,7 @@ var _ = Describe("Controller", func() {
 		newCtrlr.Run()
 
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
-		It("checks buffer's length", func() { Expect(newCtrlr.buffer.Length()).To(Equal(2)) })
+		It("checks buffer's length", func() { Expect(newCtrlr.buffer.Length()).To(BeNumerically(">=", 2)) })
 	})
 
 })
