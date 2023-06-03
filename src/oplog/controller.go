@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -18,6 +19,9 @@ type (
 		// Controller is the sole entity responsible for coordinating
 		// between the watcher, buffer and managing the bookmarks.
 		// It runs in the scope of the collection.
+
+		Ctx context.Context
+
 		SourceDatabase   *mongo.Database
 		SourceCollection *mongo.Collection
 
@@ -42,8 +46,15 @@ func (resumeToken *ResumeTokenStore) Copy() (copied *ResumeTokenStore) {
 	return
 }
 
-func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mongo.Database, dstColl *mongo.Collection) (ctrlr *Controller, err error) {
+func NewController(ctx context.Context,
+	srcDb *mongo.Database,
+	srcColl *mongo.Collection,
+	dstDb *mongo.Database,
+	dstColl *mongo.Collection,
+) (ctrlr *Controller, err error) {
+
 	ctrlr = &Controller{
+		Ctx:              ctx,
 		SourceDatabase:   srcDb,
 		SourceCollection: srcColl,
 		DestDatabase:     dstDb,
@@ -51,10 +62,10 @@ func NewController(srcDb *mongo.Database, srcColl *mongo.Collection, dstDb *mong
 
 		trackerCloseCh: make(chan bool),
 	}
-	if ctrlr.watcher, err = NewOplogWatcher(srcDb, srcColl); err != nil {
+	if ctrlr.watcher, err = NewOplogWatcher(ctrlr.Ctx, srcDb, srcColl); err != nil {
 		return
 	}
-	if ctrlr.buffer, err = NewBuffer(LogFlusherFunc); err != nil {
+	if ctrlr.buffer, err = NewBuffer(ctrlr.Ctx, LogFlusherFunc); err != nil {
 		return
 	}
 	return
@@ -89,6 +100,9 @@ func (ctrlr *Controller) getLastResumeTokenFromStore() (resumeToken *ResumeToken
 func (ctrlr *Controller) trackWatcherMessages() (err error) {
 	for {
 		select {
+		case <-ctrlr.Ctx.Done():
+			log.Println("Close signal received")
+			return
 		case <-ctrlr.trackerCloseCh:
 			log.Println("Close signal received")
 			return

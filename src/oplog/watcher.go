@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -13,6 +14,8 @@ import (
 
 type (
 	OplogWatcher struct {
+		Ctx context.Context
+
 		Database   *mongo.Database
 		Collection *mongo.Collection
 
@@ -26,8 +29,9 @@ type (
 	}
 )
 
-func NewOplogWatcher(db *mongo.Database, collection *mongo.Collection) (watcher *OplogWatcher, err error) {
+func NewOplogWatcher(ctx context.Context, db *mongo.Database, collection *mongo.Collection) (watcher *OplogWatcher, err error) {
 	watcher = &OplogWatcher{
+		Ctx:                 ctx,
 		Database:            db,
 		Collection:          collection,
 		WatchThreshold:      1000,
@@ -88,21 +92,29 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 func (watcher *OplogWatcher) Run(resumeToken *ResumeTokenStore) (err error) {
 	var (
 		currResumeToken *ResumeTokenStore
+		ticker          *time.Ticker
 	)
+	ticker = time.NewTicker(1 * time.Second)
 	currResumeToken = resumeToken.Copy()
 	for {
-		var (
-			messages []*MessageN
-		)
-		if messages, err = watcher.FetchFromOplog(currResumeToken); err != nil {
-			log.Println(err)
-		}
-		// Update the resume token to the latest timestamp
-		currResumeToken.Timestamp = messages[len(messages)-1].Timestamp
+		select {
+		case <-watcher.Ctx.Done():
+			log.Println("Exiting watcher")
+			return
+		case <-ticker.C:
+			var (
+				messages []*MessageN
+			)
+			if messages, err = watcher.FetchFromOplog(currResumeToken); err != nil {
+				log.Println(err)
+			}
+			// Update the resume token to the latest timestamp
+			currResumeToken.Timestamp = messages[len(messages)-1].Timestamp
 
-		watcher.WatchCount += len(messages)
-		if watcher.ShouldHonorWatchThreshold == true && len(messages) >= watcher.WatchThreshold {
-			break
+			watcher.WatchCount += len(messages)
+			if watcher.ShouldHonorWatchThreshold == true && len(messages) >= watcher.WatchThreshold {
+				return
+			}
 		}
 	}
 	return

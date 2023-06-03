@@ -21,6 +21,9 @@ const (
 
 type (
 	Oplog struct {
+		Ctx        context.Context
+		CancelFunc context.CancelFunc
+
 		noOfWorkers uint8
 		oplogConfig *OplogConfig
 
@@ -60,6 +63,7 @@ func New() (oplogCtx *Oplog, err error) {
 		dstCollections: make(map[string]*mongo.Collection),
 		closeCh:        make(chan bool),
 	}
+	oplogCtx.Ctx, oplogCtx.CancelFunc = context.WithCancel(context.Background())
 	if oplogCtx.oplogConfig, err = NewOplogConfig(); err != nil {
 		return
 	}
@@ -177,7 +181,9 @@ func (oplogCtx *Oplog) Run() (err error) {
 		var (
 			ctrlr *Controller
 		)
-		if ctrlr, err = NewController(oplogCtx.srcDb,
+		if ctrlr, err = NewController(
+			oplogCtx.Ctx,
+			oplogCtx.srcDb,
 			oplogCtx.srcCollections[collName],
 			oplogCtx.dstDb,
 			oplogCtx.dstCollections[collName],
@@ -188,5 +194,7 @@ func (oplogCtx *Oplog) Run() (err error) {
 		go ctrlr.Run()
 	}
 	<-oplogCtx.closeCh
+	oplogCtx.CancelFunc()
+
 	return
 }

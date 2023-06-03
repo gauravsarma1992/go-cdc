@@ -16,6 +16,7 @@ func GetTestController() (newCtrlr *Controller, err error) {
 	newOplog, _ = New()
 	err = newOplog.Connect()
 	newCtrlr, err = NewController(
+		context.TODO(),
 		newOplog.srcDb,
 		newOplog.srcCollections["coll_one"],
 		newOplog.dstDb,

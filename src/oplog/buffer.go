@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"time"
@@ -13,6 +14,8 @@ const (
 type (
 	FlusherFunc func([]*MessageN) error
 	Buffer      struct {
+		Ctx context.Context
+
 		store         []*MessageN
 		LastFlushedAt time.Time
 		CurrFlushIdx  int
@@ -26,8 +29,9 @@ type (
 	}
 )
 
-func NewBuffer(flusherFunc FlusherFunc) (buffer *Buffer, err error) {
+func NewBuffer(ctx context.Context, flusherFunc FlusherFunc) (buffer *Buffer, err error) {
 	buffer = &Buffer{
+		Ctx:           ctx,
 		Flusher:       flusherFunc,
 		LastFlushedAt: time.Now(),
 	}

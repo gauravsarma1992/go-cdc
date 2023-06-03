@@ -24,7 +24,7 @@ var _ = Describe("Watcher", func() {
 	)
 	newOplog, _ = New()
 	err = newOplog.Connect()
-	newWatcher, err = NewOplogWatcher(newOplog.srcDb, newOplog.srcCollections["coll_one"])
+	newWatcher, err = NewOplogWatcher(context.TODO(), newOplog.srcDb, newOplog.srcCollections["coll_one"])
 	newWatcher.ShouldHonorWatchThreshold = true
 	newWatcher.WatchThreshold = 1
 	newWatcher.FetchCountThreshold = 1

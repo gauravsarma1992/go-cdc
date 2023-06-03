@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -11,21 +12,21 @@ import (
 var _ = Describe("Buffer", func() {
 	log.Println("Buffer test Suite")
 	Describe("Buffer Initialisation", func() {
-		buffer, err := NewBuffer(LogFlusherFunc)
+		buffer, err := NewBuffer(context.TODO(), LogFlusherFunc)
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 		It("ensures buffer is not nil", func() { Expect(buffer).ToNot(BeNil()) })
 		It("ensures default TimeInSecsThreshold", func() { Expect(buffer.Config.TimeInSecsThreshold).To(Equal(5)) })
 		It("ensures default CountThreshold", func() { Expect(buffer.Config.CountThreshold).To(Equal(1000)) })
 	})
 	Describe("Buffer Store", func() {
-		buffer, err := NewBuffer(LogFlusherFunc)
+		buffer, err := NewBuffer(context.TODO(), LogFlusherFunc)
 		err = buffer.Store(GetDummyMessage())
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 		It("ensures buffer length", func() { Expect(len(buffer.store)).To(Equal(1)) })
 	})
 	Describe("Buffer Flush", func() {
 		Context("when flushing one event", func() {
-			buffer, err := NewBuffer(LogFlusherFunc)
+			buffer, err := NewBuffer(context.TODO(), LogFlusherFunc)
 			err = buffer.Store(GetDummyMessage())
 			_, err = buffer.Flush()
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
@@ -33,7 +34,7 @@ var _ = Describe("Buffer", func() {
 		})
 
 		Context("when flushing 3 more event", func() {
-			buffer, err := NewBuffer(LogFlusherFunc)
+			buffer, err := NewBuffer(context.TODO(), LogFlusherFunc)
 			err = buffer.Store(GetDummyMessage())
 			err = buffer.Store(GetDummyMessage())
 			err = buffer.Store(GetDummyMessage())
@@ -44,17 +45,17 @@ var _ = Describe("Buffer", func() {
 	})
 	Describe("Buffer ShouldFlush", func() {
 		Context("when time passed is more than threshold", func() {
-			buffer, _ := NewBuffer(LogFlusherFunc)
+			buffer, _ := NewBuffer(context.TODO(), LogFlusherFunc)
 			buffer.LastFlushedAt = time.Now().Add(-5 * time.Second)
 			It("ensures should flush", func() { Expect(buffer.ShouldFlush()).To(Equal(true)) })
 		})
 		Context("when time passed is not more than threshold", func() {
-			buffer, _ := NewBuffer(LogFlusherFunc)
+			buffer, _ := NewBuffer(context.TODO(), LogFlusherFunc)
 			buffer.LastFlushedAt = time.Now()
 			It("ensures should flush", func() { Expect(buffer.ShouldFlush()).To(Equal(false)) })
 		})
 		Context("when count is not more than threshold", func() {
-			buffer, _ := NewBuffer(LogFlusherFunc)
+			buffer, _ := NewBuffer(context.TODO(), LogFlusherFunc)
 			buffer.Config.CountThreshold = 5
 			buffer.Store(GetDummyMessage())
 			buffer.Store(GetDummyMessage())
@@ -62,7 +63,7 @@ var _ = Describe("Buffer", func() {
 			It("ensures should flush", func() { Expect(buffer.ShouldFlush()).To(Equal(false)) })
 		})
 		Context("when count is not more than threshold", func() {
-			buffer, _ := NewBuffer(LogFlusherFunc)
+			buffer, _ := NewBuffer(context.TODO(), LogFlusherFunc)
 			buffer.Config.CountThreshold = 5
 			buffer.Store(GetDummyMessage())
 			buffer.Store(GetDummyMessage())
