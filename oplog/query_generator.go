@@ -12,14 +12,16 @@ import (
 type (
 	QueryFunc      func(*MessageN) error
 	QueryGenerator struct {
+		Ctx        context.Context
 		Collection *mongo.Collection
 
 		queryMap map[string]QueryFunc
 	}
 )
 
-func NewQueryGenerator(coll *mongo.Collection) (queryGen *QueryGenerator, err error) {
+func NewQueryGenerator(ctx context.Context, coll *mongo.Collection) (queryGen *QueryGenerator, err error) {
 	queryGen = &QueryGenerator{
+		Ctx:        ctx,
 		Collection: coll,
 		queryMap:   make(map[string]QueryFunc),
 	}
@@ -69,6 +71,15 @@ func (queryGen *QueryGenerator) Process(msg *MessageN) (err error) {
 	}
 	if err = queryFunc(msg); err != nil {
 		return
+	}
+	return
+}
+
+func (queryGen *QueryGenerator) ProcessAll(messages []*MessageN) (err error) {
+	for _, msg := range messages {
+		if err = queryGen.Process(msg); err != nil {
+			return
+		}
 	}
 	return
 }

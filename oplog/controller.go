@@ -29,8 +29,9 @@ type (
 		DestDatabase   *mongo.Database
 		DestCollection *OplogCollection
 
-		watcher *OplogWatcher
-		buffer  *Buffer
+		watcher   *OplogWatcher
+		buffer    *Buffer
+		query_gen *QueryGenerator
 
 		trackerCloseCh chan bool
 	}
@@ -66,7 +67,10 @@ func NewController(ctx context.Context,
 	if ctrlr.watcher, err = NewOplogWatcher(ctrlr.Ctx, srcDb, srcColl); err != nil {
 		return
 	}
-	if ctrlr.buffer, err = NewBuffer(ctrlr.Ctx, LogFlusherFunc); err != nil {
+	if ctrlr.query_gen, err = NewQueryGenerator(ctrlr.Ctx, srcColl.MongoCollection); err != nil {
+		return
+	}
+	if ctrlr.buffer, err = NewBuffer(ctrlr.Ctx, ctrlr.query_gen.ProcessAll); err != nil {
 		return
 	}
 	return

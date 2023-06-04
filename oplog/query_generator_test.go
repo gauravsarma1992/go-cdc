@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"context"
 	"log"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -13,7 +14,7 @@ var _ = Describe("QueryGenerator", func() {
 	message := GetDummyMessage()
 	newOplog, _ := New()
 	newOplog.Connect()
-	newQueryGen, err := NewQueryGenerator(newOplog.dstCollections["coll_one"].MongoCollection)
+	newQueryGen, err := NewQueryGenerator(context.TODO(), newOplog.dstCollections["coll_one"].MongoCollection)
 
 	Describe("starting query lifecycle", func() {
 		err = newQueryGen.Process(message)

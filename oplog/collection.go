@@ -22,7 +22,19 @@ type (
 	}
 )
 
-func (collection *OplogCollection) GetFilters(resumeToken *ResumeTokenStore) (filters bson.M, err error) {
+func (collection *OplogCollection) AddCollectionFilter(filters bson.M) (err error) {
+	if len(collection.Filters) == 0 {
+		log.Println("No filters found")
+		return
+	}
+	for _, filter := range collection.Filters {
+		filterKey := fmt.Sprintf("o.%s", filter.FilterKey)
+		filters[filterKey] = bson.M{filter.FilterType: filter.FilterValue}
+	}
+	return
+}
+
+func (collection *OplogCollection) GetOplogFilter(resumeToken *ResumeTokenStore) (filters bson.M, err error) {
 	var (
 		ns string
 	)
@@ -32,13 +44,8 @@ func (collection *OplogCollection) GetFilters(resumeToken *ResumeTokenStore) (fi
 		"ts": bson.M{"$gte": resumeToken.Timestamp},
 	}
 
-	if len(collection.Filters) == 0 {
-		log.Println("No filters found")
+	if err = collection.AddCollectionFilter(filters); err != nil {
 		return
-	}
-	for _, filter := range collection.Filters {
-		filterKey := fmt.Sprintf("o.%s", filter.FilterKey)
-		filters[filterKey] = bson.M{filter.FilterType: filter.FilterValue}
 	}
 	return
 }

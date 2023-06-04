@@ -62,7 +62,7 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 	findOptions = options.Find()
 	findOptions.SetLimit(int64(watcher.FetchCountThreshold))
 
-	if filters, err = watcher.Collection.GetFilters(resumeToken); err != nil {
+	if filters, err = watcher.Collection.GetOplogFilter(resumeToken); err != nil {
 		return
 	}
 
