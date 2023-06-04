@@ -51,16 +51,6 @@ type (
 		DbName      string            `json:"db_name"`
 		Collections []OplogCollection `json:"collections"`
 	}
-	OplogCollection struct {
-		Name            string            `json:"name"`
-		Filters         []Filter          `json:"filters"`
-		MongoCollection *mongo.Collection `json:"mongo_collection"`
-	}
-	Filter struct {
-		FilterKey   string `json:"filter_key"`
-		FilterValue string `json:"filter_value"`
-		FilterType  string `json:"filter_type"`
-	}
 )
 
 func New() (oplogCtx *Oplog, err error) {
@@ -164,12 +154,12 @@ func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[stri
 		)
 		currCollection = db.Collection(oplogCollection.Name)
 		oplogCollection.MongoCollection = currCollection
+		oplogCollection.MongoDatabase = db
 
 		collection[oplogCollection.Name] = &oplogCollection
 	}
 	return
 }
-
 func (oplogCtx *Oplog) Connect() (err error) {
 	if oplogCtx.srcDb, err = oplogCtx.connectToDb(oplogCtx.sourceMongoConfig, oplogCtx.srcCollections); err != nil {
 		return

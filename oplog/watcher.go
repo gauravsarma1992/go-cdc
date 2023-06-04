@@ -2,7 +2,6 @@ package oplog
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -51,27 +50,6 @@ func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 	return
 }
 
-func (watcher *OplogWatcher) GetFilters(resumeToken *ResumeTokenStore) (filters bson.M, err error) {
-	var (
-		ns string
-	)
-	ns = fmt.Sprintf("%s.%s", watcher.Database.Name(), watcher.Collection.MongoCollection.Name())
-	filters = bson.M{
-		"ns": ns,
-		"ts": bson.M{"$gte": resumeToken.Timestamp},
-	}
-
-	if len(watcher.Collection.Filters) == 0 {
-		log.Println("No filters found")
-		return
-	}
-	for _, filter := range watcher.Collection.Filters {
-		filterKey := fmt.Sprintf("o.%s", filter.FilterKey)
-		filters[filterKey] = bson.M{filter.FilterType: filter.FilterValue}
-	}
-	return
-}
-
 func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (messages []*MessageN, err error) {
 	var (
 		oplogCollection *mongo.Collection
@@ -84,7 +62,7 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 	findOptions = options.Find()
 	findOptions.SetLimit(int64(watcher.FetchCountThreshold))
 
-	if filters, err = watcher.GetFilters(resumeToken); err != nil {
+	if filters, err = watcher.Collection.GetFilters(resumeToken); err != nil {
 		return
 	}
 
