@@ -7,15 +7,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const (
-	DefaultOplogConfigFile       = "./config/oplog_config.json"
-	DefaultSourceMongoConfigFile = "./config/source_mongo_config.json"
-	DefaultDestMongoFile         = "./config/dest_mongo_config.json"
+var (
+	ConfigFolder                 = os.Getenv("CONFIG_FOLDER")
+	DefaultOplogConfigFile       = fmt.Sprintf("%s/oplog_config.json", ConfigFolder)
+	DefaultSourceMongoConfigFile = fmt.Sprintf("%s/source_mongo_config.json", ConfigFolder)
+	DefaultDestMongoFile         = fmt.Sprintf("%s/dest_mongo_config.json", ConfigFolder)
 )
 
 type (

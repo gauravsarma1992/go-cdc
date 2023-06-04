@@ -11,8 +11,9 @@ All the config files are present in `src/oplog/config` folder
 
 ## To run the suite
 ```bash
-./setup_and_run # Runs the mongo container and the mongoreplay container
-./setup_and_test # Runs the test suite
+make run # Runs the mongo container and the mongoreplay container
+make test # Runs the test suite
+make build # Builds the app 
 ```
 
 
