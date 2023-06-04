@@ -1,7 +1,11 @@
 {
   "db_name": "test",
   "collections": [{
-    "filters": [],
+    "filters": [{
+      "filter_key": "name",
+      "filter_value": "Gary",
+      "filter_type": "$eq"
+    }],
     "name": "coll_one"
   }]
 

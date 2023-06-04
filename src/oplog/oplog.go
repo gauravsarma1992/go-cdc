@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/gauravsarma1992/mongoreplay/filters"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -31,10 +30,10 @@ type (
 		destMongoConfig   *MongoConfig
 
 		srcDb          *mongo.Database
-		srcCollections map[string]*mongo.Collection
+		srcCollections map[string]*OplogCollection
 
 		dstDb          *mongo.Database
-		dstCollections map[string]*mongo.Collection
+		dstCollections map[string]*OplogCollection
 
 		controllers []*Controller
 		closeCh     chan bool
@@ -51,19 +50,26 @@ type (
 		Collections []OplogCollection `json:"collections"`
 	}
 	OplogCollection struct {
-		Name    string           `json:"name"`
-		Filters []filters.Filter `json:"filters"`
+		Name            string            `json:"name"`
+		Filters         []Filter          `json:"filters"`
+		MongoCollection *mongo.Collection `json:"mongo_collection"`
+	}
+	Filter struct {
+		FilterKey   string `json:"filter_key"`
+		FilterValue string `json:"filter_value"`
+		FilterType  string `json:"filter_type"`
 	}
 )
 
 func New() (oplogCtx *Oplog, err error) {
 	oplogCtx = &Oplog{
 		noOfWorkers:    4,
-		srcCollections: make(map[string]*mongo.Collection),
-		dstCollections: make(map[string]*mongo.Collection),
+		srcCollections: make(map[string]*OplogCollection),
+		dstCollections: make(map[string]*OplogCollection),
 		closeCh:        make(chan bool),
 	}
 	oplogCtx.Ctx, oplogCtx.CancelFunc = context.WithCancel(context.Background())
+
 	if oplogCtx.oplogConfig, err = NewOplogConfig(); err != nil {
 		return
 	}
@@ -136,7 +142,7 @@ func (sourceMongoConfig *MongoConfig) GetUrl() (url string) {
 	return
 }
 
-func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[string]*mongo.Collection) (db *mongo.Database, err error) {
+func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[string]*OplogCollection) (db *mongo.Database, err error) {
 	var (
 		client *mongo.Client
 	)
@@ -155,7 +161,9 @@ func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[stri
 			currCollection *mongo.Collection
 		)
 		currCollection = db.Collection(oplogCollection.Name)
-		collection[oplogCollection.Name] = currCollection
+		oplogCollection.MongoCollection = currCollection
+
+		collection[oplogCollection.Name] = &oplogCollection
 	}
 	return
 }
@@ -168,7 +176,7 @@ func (oplogCtx *Oplog) Connect() (err error) {
 		return
 	}
 	for _, coll := range oplogCtx.dstCollections {
-		coll.Drop(context.TODO())
+		coll.MongoCollection.Drop(context.TODO())
 	}
 	return
 }

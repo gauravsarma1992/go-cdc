@@ -42,11 +42,11 @@ var _ = Describe("Controller", func() {
 		go func() {
 			time.Sleep(1 * time.Second)
 			person := &PersonTest{Name: "Gary"}
-			if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
+			if _, err = newCtrlr.watcher.Collection.MongoCollection.InsertOne(context.TODO(), person); err != nil {
 				log.Println(err)
 			}
 			time.Sleep(1 * time.Second)
-			if _, err = newCtrlr.watcher.Collection.InsertOne(context.TODO(), person); err != nil {
+			if _, err = newCtrlr.watcher.Collection.MongoCollection.InsertOne(context.TODO(), person); err != nil {
 				log.Println(err)
 			}
 		}()

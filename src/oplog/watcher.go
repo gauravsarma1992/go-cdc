@@ -17,7 +17,7 @@ type (
 		Ctx context.Context
 
 		Database   *mongo.Database
-		Collection *mongo.Collection
+		Collection *OplogCollection
 
 		FetchCountThreshold int
 
@@ -29,7 +29,7 @@ type (
 	}
 )
 
-func NewOplogWatcher(ctx context.Context, db *mongo.Database, collection *mongo.Collection) (watcher *OplogWatcher, err error) {
+func NewOplogWatcher(ctx context.Context, db *mongo.Database, collection *OplogCollection) (watcher *OplogWatcher, err error) {
 	watcher = &OplogWatcher{
 		Ctx:                 ctx,
 		Database:            db,
@@ -51,21 +51,45 @@ func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 	return
 }
 
+func (watcher *OplogWatcher) GetFilters(resumeToken *ResumeTokenStore) (filters bson.M, err error) {
+	var (
+		ns string
+	)
+	ns = fmt.Sprintf("%s.%s", watcher.Database.Name(), watcher.Collection.MongoCollection.Name())
+	filters = bson.M{
+		"ns": ns,
+		"ts": bson.M{"$gte": resumeToken.Timestamp},
+	}
+
+	if len(watcher.Collection.Filters) == 0 {
+		log.Println("No filters found")
+		return
+	}
+	for _, filter := range watcher.Collection.Filters {
+		filterKey := fmt.Sprintf("o.%s", filter.FilterKey)
+		filters[filterKey] = bson.M{filter.FilterType: filter.FilterValue}
+	}
+	return
+}
+
 func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (messages []*MessageN, err error) {
 	var (
 		oplogCollection *mongo.Collection
 		findOptions     *options.FindOptions
 		cursor          *mongo.Cursor
-		ns              string
 		results         []bson.M
+		filters         bson.M
 	)
-	ns = fmt.Sprintf("%s.%s", watcher.Database.Name(), watcher.Collection.Name())
 
 	findOptions = options.Find()
 	findOptions.SetLimit(int64(watcher.FetchCountThreshold))
 
+	if filters, err = watcher.GetFilters(resumeToken); err != nil {
+		return
+	}
+
 	oplogCollection = watcher.Database.Client().Database("local").Collection("oplog.rs")
-	if cursor, err = oplogCollection.Find(context.TODO(), bson.M{"ns": ns, "ts": bson.M{"$gte": resumeToken.Timestamp}}, findOptions); err != nil {
+	if cursor, err = oplogCollection.Find(context.TODO(), filters, findOptions); err != nil {
 		return
 	}
 

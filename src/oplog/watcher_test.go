@@ -33,7 +33,7 @@ var _ = Describe("Watcher", func() {
 		Describe("when default settings are used", func() {
 			go func() {
 				person := &PersonTest{Name: "Gary"}
-				newWatcher.Collection.InsertOne(context.TODO(), person)
+				newWatcher.Collection.MongoCollection.InsertOne(context.TODO(), person)
 			}()
 			newWatcher.Run(&ResumeTokenStore{})
 			It("ensures no error", func() { Expect(err).To(BeNil()) })

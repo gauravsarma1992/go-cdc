@@ -3,6 +3,7 @@ package oplog
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	LastUpdatedResumeFile = "last-updated-resume-token"
+	LastUpdatedResumeFile = "/tmp/last-updated-resume-token"
 )
 
 type (
@@ -23,10 +24,10 @@ type (
 		Ctx context.Context
 
 		SourceDatabase   *mongo.Database
-		SourceCollection *mongo.Collection
+		SourceCollection *OplogCollection
 
 		DestDatabase   *mongo.Database
-		DestCollection *mongo.Collection
+		DestCollection *OplogCollection
 
 		watcher *OplogWatcher
 		buffer  *Buffer
@@ -48,9 +49,9 @@ func (resumeToken *ResumeTokenStore) Copy() (copied *ResumeTokenStore) {
 
 func NewController(ctx context.Context,
 	srcDb *mongo.Database,
-	srcColl *mongo.Collection,
+	srcColl *OplogCollection,
 	dstDb *mongo.Database,
-	dstColl *mongo.Collection,
+	dstColl *OplogCollection,
 ) (ctrlr *Controller, err error) {
 
 	ctrlr = &Controller{
@@ -71,6 +72,11 @@ func NewController(ctx context.Context,
 	return
 }
 
+func (ctrlr *Controller) getFileName() (fileName string) {
+	fileName = fmt.Sprintf("%s-%s-%s", LastUpdatedResumeFile, ctrlr.SourceDatabase.Name(), ctrlr.SourceCollection.MongoCollection.Name())
+	return
+}
+
 func (ctrlr *Controller) updateLastResumeToken(resumeToken *ResumeTokenStore) (err error) {
 	var (
 		resumeB []byte
@@ -78,7 +84,7 @@ func (ctrlr *Controller) updateLastResumeToken(resumeToken *ResumeTokenStore) (e
 	if resumeB, err = json.Marshal(resumeToken); err != nil {
 		return
 	}
-	if err = ioutil.WriteFile(LastUpdatedResumeFile, resumeB, 0755); err != nil {
+	if err = ioutil.WriteFile(ctrlr.getFileName(), resumeB, 0755); err != nil {
 		return
 	}
 	return
@@ -88,7 +94,7 @@ func (ctrlr *Controller) getLastResumeTokenFromStore() (resumeToken *ResumeToken
 	var (
 		resumeB []byte
 	)
-	if resumeB, err = ioutil.ReadFile(LastUpdatedResumeFile); err != nil {
+	if resumeB, err = ioutil.ReadFile(ctrlr.getFileName()); err != nil {
 		return
 	}
 	if err = json.Unmarshal(resumeB, resumeToken); err != nil {
@@ -119,6 +125,7 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 			if lastResumeToken, err = ctrlr.buffer.Flush(); err != nil {
 				log.Println("Error on flushing messages in buffer", err)
 			}
+			log.Println("Updating resume token", lastResumeToken.Timestamp)
 			if err = ctrlr.updateLastResumeToken(lastResumeToken); err != nil {
 				log.Println(err)
 				return
