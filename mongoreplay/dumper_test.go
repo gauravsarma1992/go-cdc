@@ -13,26 +13,28 @@ var _ = Describe("Dumper", func() {
 	log.Println("Dumper test Suite")
 
 	var (
-		newOplog *Oplog
-		dumper   *Dumper
-		docCount int64
-		err      error
+		newOplog      *Oplog
+		stageExecutor StageExecutor
+		dumper        *Dumper
+		docCount      int64
+		err           error
 	)
 
 	newOplog, _ = New()
 	err = newOplog.Connect()
-	dumper, err = NewDumper(
+	stageExecutor, err = NewDumper(
 		context.TODO(),
 		newOplog.srcCollections["coll_one"],
 		newOplog.dstCollections["coll_one"],
 	)
+	dumper = stageExecutor.(*Dumper)
 	dumper.buffer.Config.CountThreshold = 20
 	dumper.DstCollection.Delete(bson.M{})
 
 	seeder, _ := NewSeeder(100, newOplog.srcCollections["coll_one"])
 	seeder.Seed()
 
-	err = dumper.Dump()
+	err = dumper.Run()
 
 	docCount, err = dumper.DstCollection.MongoCollection.CountDocuments(context.TODO(), bson.M{})
 

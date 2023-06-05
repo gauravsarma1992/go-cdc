@@ -26,7 +26,10 @@ type (
 	}
 )
 
-func NewDumper(ctx context.Context, srcCollection *OplogCollection, dstCollection *OplogCollection) (dumper *Dumper, err error) {
+func NewDumper(ctx context.Context, srcCollection *OplogCollection, dstCollection *OplogCollection) (stageExecutor StageExecutor, err error) {
+	var (
+		dumper *Dumper
+	)
 	dumper = &Dumper{
 		Ctx:           ctx,
 		SrcCollection: srcCollection,
@@ -43,6 +46,7 @@ func NewDumper(ctx context.Context, srcCollection *OplogCollection, dstCollectio
 	if dumper.buffer, err = NewBuffer(dumper.Ctx, dumper.query_gen.ProcessAll); err != nil {
 		return
 	}
+	stageExecutor = dumper
 	return
 }
 
@@ -104,7 +108,7 @@ func (dumper *Dumper) trackRows() (err error) {
 	}
 }
 
-func (dumper *Dumper) Dump() (err error) {
+func (dumper *Dumper) Run(args ...interface{}) (err error) {
 
 	go dumper.trackRows()
 	if err = dumper.DstCollection.Delete(bson.M{}); err != nil {

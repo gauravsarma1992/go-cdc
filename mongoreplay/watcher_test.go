@@ -18,13 +18,15 @@ var _ = Describe("Watcher", func() {
 	log.Println("Watcher test Suite")
 
 	var (
-		newOplog   *Oplog
-		newWatcher *OplogWatcher
-		err        error
+		newOplog      *Oplog
+		newWatcher    *OplogWatcher
+		stageExecutor StageExecutor
+		err           error
 	)
 	newOplog, _ = New()
 	err = newOplog.Connect()
-	newWatcher, err = NewOplogWatcher(context.TODO(), newOplog.srcDb, newOplog.srcCollections["coll_one"])
+	stageExecutor, err = NewOplogWatcher(context.TODO(), newOplog.srcCollections["coll_one"], newOplog.dstCollections["coll_one"])
+	newWatcher = stageExecutor.(*OplogWatcher)
 	newWatcher.ShouldHonorWatchThreshold = true
 	newWatcher.WatchThreshold = 1
 	newWatcher.FetchCountThreshold = 1

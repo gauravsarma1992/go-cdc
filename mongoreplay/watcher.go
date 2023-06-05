@@ -15,7 +15,6 @@ type (
 	OplogWatcher struct {
 		Ctx context.Context
 
-		Database   *mongo.Database
 		Collection *OplogCollection
 
 		FetchCountThreshold int
@@ -28,16 +27,16 @@ type (
 	}
 )
 
-func NewOplogWatcher(ctx context.Context, db *mongo.Database, collection *OplogCollection) (watcher *OplogWatcher, err error) {
-	watcher = &OplogWatcher{
+func NewOplogWatcher(ctx context.Context, collection *OplogCollection, dstCollection *OplogCollection) (stageExecutor StageExecutor, err error) {
+	watcher := &OplogWatcher{
 		Ctx:                 ctx,
-		Database:            db,
 		Collection:          collection,
 		WatchThreshold:      1000,
 		FetchCountThreshold: 1000,
 
 		CtrlrCh: make(chan *MessageN, 1024),
 	}
+	stageExecutor = watcher
 	return
 }
 
@@ -66,7 +65,7 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 		return
 	}
 
-	oplogCollection = watcher.Database.Client().Database("local").Collection("oplog.rs")
+	oplogCollection = watcher.Collection.MongoDatabase.Client().Database("local").Collection("oplog.rs")
 	if cursor, err = oplogCollection.Find(context.TODO(), filters, findOptions); err != nil {
 		return
 	}
@@ -91,11 +90,13 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 	return
 }
 
-func (watcher *OplogWatcher) Run(resumeToken *ResumeTokenStore) (err error) {
+func (watcher *OplogWatcher) Run(args ...interface{}) (err error) {
 	var (
 		currResumeToken *ResumeTokenStore
 		ticker          *time.Ticker
+		resumeToken     *ResumeTokenStore
 	)
+	resumeToken = args[0].(*ResumeTokenStore)
 	ticker = time.NewTicker(1 * time.Second)
 	currResumeToken = resumeToken.Copy()
 	for {

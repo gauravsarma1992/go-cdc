@@ -10,8 +10,9 @@ type (
 	StateTypeT uint8
 
 	StageTracker struct {
-		Ctx    context.Context
-		Stages []Stage
+		Ctx      context.Context
+		Stages   []Stage
+		stageMap map[StageTypeT]StageFunction
 	}
 	Stage struct {
 		StartTime       time.Time `json:"start_time"`
@@ -23,6 +24,10 @@ type (
 
 		Metadata map[string]interface{} `json:"metadata"`
 	}
+	StageExecutor interface {
+		Run(...interface{}) error
+	}
+	StageFunction func(context.Context, *OplogCollection, *OplogCollection) (StageExecutor, error)
 )
 
 var (
@@ -39,8 +44,15 @@ var (
 
 func NewStageTracker(ctx context.Context) (stageTracker *StageTracker, err error) {
 	stageTracker = &StageTracker{
-		Ctx: ctx,
+		Ctx:      ctx,
+		stageMap: make(map[StageTypeT]StageFunction),
 	}
+	return
+}
+
+func (stageTracker *StageTracker) prepareStageMap() (err error) {
+	stageTracker.stageMap[DumpingCollectionStage] = NewDumper
+	stageTracker.stageMap[TailingOplogStage] = NewOplogWatcher
 	return
 }
 

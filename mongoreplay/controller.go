@@ -55,6 +55,10 @@ func NewController(ctx context.Context,
 	dstColl *OplogCollection,
 ) (ctrlr *Controller, err error) {
 
+	var (
+		stageExecutor StageExecutor
+	)
+
 	ctrlr = &Controller{
 		Ctx:              ctx,
 		SourceDatabase:   srcDb,
@@ -64,9 +68,10 @@ func NewController(ctx context.Context,
 
 		trackerCloseCh: make(chan bool),
 	}
-	if ctrlr.watcher, err = NewOplogWatcher(ctrlr.Ctx, srcDb, srcColl); err != nil {
+	if stageExecutor, err = NewOplogWatcher(ctrlr.Ctx, srcColl, dstColl); err != nil {
 		return
 	}
+	ctrlr.watcher = stageExecutor.(*OplogWatcher)
 	if ctrlr.query_gen, err = NewQueryGenerator(ctrlr.Ctx, srcColl.MongoCollection); err != nil {
 		return
 	}
