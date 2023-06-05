@@ -18,7 +18,7 @@ make build # Builds the app
 
 
 ## TODO (sorted based on descending priority)
-- Resume using resume token
-- Filtering based on collection attributes
-- Reading data from snapshot in the beginning
 - Proper shutdown of the concurrent contexts
+- Changing package name to mongoreplay
+- Check with multiple collections
+- Track the status of the progress
