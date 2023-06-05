@@ -1,4 +1,4 @@
-package oplog_test
+package mongoreplay_test
 
 import (
 	"testing"
