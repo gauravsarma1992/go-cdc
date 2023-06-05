@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"time"
 )
 
@@ -90,6 +91,7 @@ func (buffer *Buffer) ShouldFlush() (shouldFlush bool) {
 
 func (buffer *Buffer) Rollover() (err error) {
 	if len(buffer.store) > buffer.Config.RolloverThreshold {
+		log.Println("[Buffer] Rollover", len(buffer.store))
 		buffer.store = make([]*MessageN, 0)
 		buffer.LastFlushedAt = time.Now()
 		buffer.CurrFlushIdx = 0
@@ -101,8 +103,11 @@ func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeTokenStore, err err
 	var (
 		events []*MessageN
 	)
-	for idx := 0; idx < len(buffer.store); idx++ {
+	for idx := buffer.CurrFlushIdx; idx < len(buffer.store); idx++ {
 		events = append(events, buffer.store[idx])
+	}
+	if len(events) == 0 {
+		return
 	}
 	if err = buffer.Flusher(events); err != nil {
 		return
@@ -113,6 +118,20 @@ func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeTokenStore, err err
 	buffer.CurrFlushIdx = len(buffer.store)
 	buffer.LastFlushedAt = time.Now()
 
+	log.Println("[Buffer] Flushed", len(events), "events. Total events remaining:", buffer.Length())
+
 	buffer.Rollover()
+	return
+}
+
+func (buffer *Buffer) FlushAll() (lastFlushedResumeToken *ResumeTokenStore, err error) {
+	for {
+		if lastFlushedResumeToken, err = buffer.Flush(); err != nil {
+			return
+		}
+		if buffer.Length() == 0 {
+			break
+		}
+	}
 	return
 }

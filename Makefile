@@ -2,6 +2,9 @@
 OBJ = oplog/*
 CONFIG_FOLDER = ./config 
 
+debug_test: $(OBJ)
+	CONFIG_FOLDER=../$(CONFIG_FOLDER) dlv test ./oplog -v
+
 test: $(OBJ)
 	CONFIG_FOLDER=../$(CONFIG_FOLDER) go test ./oplog -v
 

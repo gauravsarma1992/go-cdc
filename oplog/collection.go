@@ -1,6 +1,7 @@
 package oplog
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -22,13 +23,27 @@ type (
 	}
 )
 
-func (collection *OplogCollection) AddCollectionFilter(filters bson.M) (err error) {
+func (collection *OplogCollection) Delete(filters bson.M) (err error) {
+	var (
+		deleteResult *mongo.DeleteResult
+	)
+	if deleteResult, err = collection.MongoCollection.DeleteMany(context.TODO(), filters); err != nil {
+		log.Println("[OplogCollection] Error in deleting", collection.GetCollectionPath(), deleteResult.DeletedCount)
+		return
+	}
+	return
+}
+
+func (collection *OplogCollection) AddCollectionFilter(filters bson.M, isOplog bool) (err error) {
 	if len(collection.Filters) == 0 {
-		log.Println("No filters found")
+		log.Println("[OplogCollection] No filters found")
 		return
 	}
 	for _, filter := range collection.Filters {
-		filterKey := fmt.Sprintf("o.%s", filter.FilterKey)
+		filterKey := filter.FilterKey
+		if isOplog {
+			filterKey = fmt.Sprintf("o.%s", filter.FilterKey)
+		}
 		filters[filterKey] = bson.M{filter.FilterType: filter.FilterValue}
 	}
 	return
@@ -44,7 +59,7 @@ func (collection *OplogCollection) GetOplogFilter(resumeToken *ResumeTokenStore)
 		"ts": bson.M{"$gte": resumeToken.Timestamp},
 	}
 
-	if err = collection.AddCollectionFilter(filters); err != nil {
+	if err = collection.AddCollectionFilter(filters, true); err != nil {
 		return
 	}
 	return

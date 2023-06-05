@@ -43,7 +43,7 @@ func NewOplogWatcher(ctx context.Context, db *mongo.Database, collection *OplogC
 
 func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
 	if watcher.ShouldHonorWatchThreshold == true && watcher.WatchCount >= watcher.WatchThreshold {
-		log.Println("Exiting to honor WatchThreshold")
+		log.Println("[Watcher] Exiting to honor WatchThreshold")
 		return
 	}
 	shouldContinue = true
@@ -101,14 +101,14 @@ func (watcher *OplogWatcher) Run(resumeToken *ResumeTokenStore) (err error) {
 	for {
 		select {
 		case <-watcher.Ctx.Done():
-			log.Println("Exiting watcher")
+			log.Println("[Watcher] Exiting watcher")
 			return
 		case <-ticker.C:
 			var (
 				messages []*MessageN
 			)
 			if messages, err = watcher.FetchFromOplog(currResumeToken); err != nil {
-				log.Println(err)
+				log.Println("[Watcher] Error in fetching from oplog", err)
 			}
 			// Update the resume token to the latest timestamp
 			currResumeToken.Timestamp = messages[len(messages)-1].Timestamp

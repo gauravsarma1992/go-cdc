@@ -111,25 +111,25 @@ func (ctrlr *Controller) trackWatcherMessages() (err error) {
 	for {
 		select {
 		case <-ctrlr.Ctx.Done():
-			log.Println("Close signal received")
+			log.Println("[Controller] Close signal received")
 			return
 		case <-ctrlr.trackerCloseCh:
-			log.Println("Close signal received")
+			log.Println("[Controller] Close signal received")
 			return
 		case msg := <-ctrlr.watcher.CtrlrCh:
 			var (
 				lastResumeToken *ResumeTokenStore
 			)
 			if err = ctrlr.buffer.Store(msg); err != nil {
-				log.Println("Error on storing message in buffer", msg, err)
+				log.Println("[Controller] Error on storing message in buffer", msg, err)
 			}
 			if !ctrlr.buffer.ShouldFlush() {
 				continue
 			}
 			if lastResumeToken, err = ctrlr.buffer.Flush(); err != nil {
-				log.Println("Error on flushing messages in buffer", err)
+				log.Println("[Controller] Error on flushing messages in buffer", err)
 			}
-			log.Println("Updating resume token", lastResumeToken.Timestamp)
+			log.Println("[Controller] Updating resume token", lastResumeToken.Timestamp)
 			if err = ctrlr.updateLastResumeToken(lastResumeToken); err != nil {
 				log.Println(err)
 				return
@@ -148,7 +148,7 @@ func (ctrlr *Controller) Run() (err error) {
 	go ctrlr.trackWatcherMessages()
 
 	if err = ctrlr.watcher.Run(lastResumeToken); err != nil {
-		log.Println(err)
+		log.Println("[Controller]", err)
 	}
 	ctrlr.trackerCloseCh <- true
 	return

@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -16,7 +15,8 @@ type (
 		SrcCollection *OplogCollection
 		DstCollection *OplogCollection
 
-		DumperCh chan *MessageN
+		DumperCloseCh chan bool
+		DumperCh      chan *MessageN
 
 		buffer    *Buffer
 		query_gen *QueryGenerator
@@ -34,7 +34,8 @@ func NewDumper(ctx context.Context, srcCollection *OplogCollection, dstCollectio
 		Config: &DumperConfig{
 			FetchCountThreshold: 1000,
 		},
-		DumperCh: make(chan *MessageN),
+		DumperCloseCh: make(chan bool),
+		DumperCh:      make(chan *MessageN),
 	}
 	if dumper.query_gen, err = NewQueryGenerator(dumper.Ctx, dumper.DstCollection.MongoCollection); err != nil {
 		return
@@ -50,7 +51,8 @@ func (dumper *Dumper) StartQuery() (err error) {
 		filters bson.M
 		cursor  *mongo.Cursor
 	)
-	if err = dumper.SrcCollection.AddCollectionFilter(filters); err != nil {
+	filters = bson.M{}
+	if err = dumper.SrcCollection.AddCollectionFilter(filters, false); err != nil {
 		return
 	}
 	if cursor, err = dumper.SrcCollection.MongoCollection.Find(context.TODO(), filters); err != nil {
@@ -69,7 +71,7 @@ func (dumper *Dumper) StartQuery() (err error) {
 			CollectionPath: dumper.SrcCollection.GetCollectionPath(),
 			FullDocument:   result,
 			OperationType:  InsertOperation,
-			Timestamp:      result["createdAt"].(primitive.Timestamp),
+			//Timestamp:      result["createdAt"].(primitive.Timestamp),
 		}
 		dumper.DumperCh <- message
 	}
@@ -82,18 +84,21 @@ func (dumper *Dumper) StartQuery() (err error) {
 func (dumper *Dumper) trackRows() (err error) {
 	for {
 		select {
+		case <-dumper.DumperCloseCh:
+			log.Println("[Dumper] Close signal received in Dumper")
+			return
 		case <-dumper.Ctx.Done():
-			log.Println("Close signal received")
+			log.Println("[Dumper] Close signal received in Dumper")
 			return
 		case msg := <-dumper.DumperCh:
 			if err = dumper.buffer.Store(msg); err != nil {
-				log.Println("Error on storing message in buffer", msg, err)
+				log.Println("[Dumper] Error on storing message in buffer", msg, err)
 			}
 			if !dumper.buffer.ShouldFlush() {
 				continue
 			}
 			if _, err = dumper.buffer.Flush(); err != nil {
-				log.Println("Error on flushing messages in buffer", err)
+				log.Println("[Dumper] Error on flushing messages in buffer", err)
 			}
 		}
 	}
@@ -102,8 +107,17 @@ func (dumper *Dumper) trackRows() (err error) {
 func (dumper *Dumper) Dump() (err error) {
 
 	go dumper.trackRows()
+	if err = dumper.DstCollection.Delete(bson.M{}); err != nil {
+		return
+	}
 	if err = dumper.StartQuery(); err != nil {
 		return
+	}
+
+	dumper.DumperCloseCh <- true
+
+	if _, err = dumper.buffer.FlushAll(); err != nil {
+		log.Println("[Dumper] Error on flushing messages in buffer", err)
 	}
 	return
 }
