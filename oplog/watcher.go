@@ -82,7 +82,7 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 		message = &MessageN{
 			CollectionPath: result["ns"].(string),
 			FullDocument:   result["o"].(bson.M),
-			OperationType:  result["op"].(string),
+			OperationType:  OperationTypeT(result["op"].(string)),
 			Timestamp:      result["ts"].(primitive.Timestamp),
 		}
 		watcher.CtrlrCh <- message

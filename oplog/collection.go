@@ -49,3 +49,8 @@ func (collection *OplogCollection) GetOplogFilter(resumeToken *ResumeTokenStore)
 	}
 	return
 }
+
+func (collection *OplogCollection) GetCollectionPath() (collectionPath string) {
+	collectionPath = fmt.Sprintf("%s.%s", collection.MongoDatabase.Name(), collection.MongoCollection.Name())
+	return
+}

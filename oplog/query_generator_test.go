@@ -20,12 +20,12 @@ var _ = Describe("QueryGenerator", func() {
 		err = newQueryGen.Process(message)
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 
-		message.OperationType = "u"
+		message.OperationType = InsertOperation
 		message.FullDocument["age"] = "32"
 		err = newQueryGen.Process(message)
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 
-		message.OperationType = "d"
+		message.OperationType = UpdateOperation
 		err = newQueryGen.Process(message)
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 	})

@@ -5,10 +5,17 @@ import (
 )
 
 type (
-	MessageN struct {
+	OperationTypeT string
+	MessageN       struct {
 		CollectionPath string                 `json:"ns"`
 		FullDocument   map[string]interface{} `json:"o"`
-		OperationType  string                 `json:"op"`
+		OperationType  OperationTypeT         `json:"op"`
 		Timestamp      primitive.Timestamp    `json:"ts"`
 	}
+)
+
+var (
+	InsertOperation OperationTypeT = "i"
+	UpdateOperation OperationTypeT = "u"
+	DeleteOperation OperationTypeT = "d"
 )

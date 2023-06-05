@@ -15,7 +15,7 @@ type (
 		Ctx        context.Context
 		Collection *mongo.Collection
 
-		queryMap map[string]QueryFunc
+		queryMap map[OperationTypeT]QueryFunc
 	}
 )
 
@@ -23,16 +23,16 @@ func NewQueryGenerator(ctx context.Context, coll *mongo.Collection) (queryGen *Q
 	queryGen = &QueryGenerator{
 		Ctx:        ctx,
 		Collection: coll,
-		queryMap:   make(map[string]QueryFunc),
+		queryMap:   make(map[OperationTypeT]QueryFunc),
 	}
 	queryGen.prepareQueryMap()
 	return
 }
 
 func (queryGen *QueryGenerator) prepareQueryMap() (err error) {
-	queryGen.queryMap["i"] = queryGen.Insert
-	queryGen.queryMap["u"] = queryGen.Update
-	queryGen.queryMap["d"] = queryGen.Delete
+	queryGen.queryMap[InsertOperation] = queryGen.Insert
+	queryGen.queryMap[UpdateOperation] = queryGen.Update
+	queryGen.queryMap[DeleteOperation] = queryGen.Delete
 	return
 }
 

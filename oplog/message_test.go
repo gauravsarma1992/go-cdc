@@ -14,7 +14,7 @@ func GetDummyMessage() (message *MessageN) {
 	message = &MessageN{
 		CollectionPath: "dev.coll_one",
 		FullDocument:   bson.M{"name": "gary"},
-		OperationType:  "i",
+		OperationType:  InsertOperation,
 		Timestamp:      primitive.Timestamp{T: uint32(time.Now().Unix()), I: 1},
 	}
 	return
