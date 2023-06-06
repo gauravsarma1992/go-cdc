@@ -87,17 +87,31 @@ func (stageTracker *StageTracker) RunStage(args ...interface{}) (err error) {
 		stageFunction StageFunction
 		stageExecutor StageExecutor
 	)
+	log.Println("[StageTracker] Running stage", stageTracker.CurrStage)
 	stageFunction = stageTracker.stageMap[stageTracker.CurrStage]
+
+	stageTracker.Stages[stageTracker.CurrStage] = &Stage{
+		StartTime: time.Now(),
+		StageType: stageTracker.CurrStage,
+		Status:    PendingState,
+		Metadata:  make(map[string]interface{}),
+	}
 	if stageExecutor, err = stageFunction(stageTracker.Ctx, stageTracker.SrcCollection, stageTracker.DstCollection); err != nil {
 		return
 	}
 	if err = stageExecutor.Run(args); err != nil {
 		return
 	}
+	if err = stageTracker.Next(args); err != nil {
+		return
+	}
+	if stageTracker.RunStage(args); err != nil {
+		return
+	}
 	return
 }
 
-func (stageTracker *StageTracker) Next(args ...interface{}) (stage *Stage, err error) {
+func (stageTracker *StageTracker) Next(args ...interface{}) (err error) {
 	// Updating the attributes of the current stage
 	stageTracker.Stages[stageTracker.CurrStage].StopTime = time.Now()
 	stageTracker.Stages[stageTracker.CurrStage].LastHeartbeatAt = time.Now()
@@ -114,12 +128,6 @@ func (stageTracker *StageTracker) Next(args ...interface{}) (stage *Stage, err e
 func (stageTracker *StageTracker) Run() (err error) {
 	log.Println("[StageTracker] Starting stage tracker")
 	stageTracker.CurrStage = InitStage
-	stageTracker.Stages[stageTracker.CurrStage] = &Stage{
-		StartTime: time.Now(),
-		StageType: stageTracker.CurrStage,
-		Status:    PendingState,
-		Metadata:  make(map[string]interface{}),
-	}
 	if err = stageTracker.RunStage(); err != nil {
 		return
 	}
