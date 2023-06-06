@@ -12,7 +12,7 @@ import (
 )
 
 type (
-	OplogWatcher struct {
+	OplogTailer struct {
 		Ctx context.Context
 
 		Collection *OplogCollection
@@ -27,8 +27,8 @@ type (
 	}
 )
 
-func NewOplogWatcher(ctx context.Context, collection *OplogCollection, dstCollection *OplogCollection) (stageExecutor StageExecutor, err error) {
-	watcher := &OplogWatcher{
+func NewOplogTailer(ctx context.Context, collection *OplogCollection, dstCollection *OplogCollection) (stageExecutor StageExecutor, err error) {
+	tailer := &OplogTailer{
 		Ctx:                 ctx,
 		Collection:          collection,
 		WatchThreshold:      1000,
@@ -36,20 +36,20 @@ func NewOplogWatcher(ctx context.Context, collection *OplogCollection, dstCollec
 
 		CtrlrCh: make(chan *MessageN, 1024),
 	}
-	stageExecutor = watcher
+	stageExecutor = tailer
 	return
 }
 
-func (watcher *OplogWatcher) ShouldContinueProcessing() (shouldContinue bool) {
-	if watcher.ShouldHonorWatchThreshold == true && watcher.WatchCount >= watcher.WatchThreshold {
-		log.Println("[Watcher] Exiting to honor WatchThreshold")
+func (tailer *OplogTailer) ShouldContinueProcessing() (shouldContinue bool) {
+	if tailer.ShouldHonorWatchThreshold == true && tailer.WatchCount >= tailer.WatchThreshold {
+		log.Println("[Tailer] Exiting to honor WatchThreshold")
 		return
 	}
 	shouldContinue = true
 	return
 }
 
-func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (messages []*MessageN, err error) {
+func (tailer *OplogTailer) FetchFromOplog(resumeToken *ResumeTokenStore) (messages []*MessageN, err error) {
 	var (
 		oplogCollection *mongo.Collection
 		findOptions     *options.FindOptions
@@ -59,13 +59,13 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 	)
 
 	findOptions = options.Find()
-	findOptions.SetLimit(int64(watcher.FetchCountThreshold))
+	findOptions.SetLimit(int64(tailer.FetchCountThreshold))
 
-	if filters, err = watcher.Collection.GetOplogFilter(resumeToken); err != nil {
+	if filters, err = tailer.Collection.GetOplogFilter(resumeToken); err != nil {
 		return
 	}
 
-	oplogCollection = watcher.Collection.MongoDatabase.Client().Database("local").Collection("oplog.rs")
+	oplogCollection = tailer.Collection.MongoDatabase.Client().Database("local").Collection("oplog.rs")
 	if cursor, err = oplogCollection.Find(context.TODO(), filters, findOptions); err != nil {
 		return
 	}
@@ -84,13 +84,13 @@ func (watcher *OplogWatcher) FetchFromOplog(resumeToken *ResumeTokenStore) (mess
 			OperationType:  OperationTypeT(result["op"].(string)),
 			Timestamp:      result["ts"].(primitive.Timestamp),
 		}
-		watcher.CtrlrCh <- message
+		tailer.CtrlrCh <- message
 		messages = append(messages, message)
 	}
 	return
 }
 
-func (watcher *OplogWatcher) Run(args ...interface{}) (err error) {
+func (tailer *OplogTailer) Run(args ...interface{}) (err error) {
 	var (
 		currResumeToken *ResumeTokenStore
 		ticker          *time.Ticker
@@ -101,21 +101,21 @@ func (watcher *OplogWatcher) Run(args ...interface{}) (err error) {
 	currResumeToken = resumeToken.Copy()
 	for {
 		select {
-		case <-watcher.Ctx.Done():
-			log.Println("[Watcher] Exiting watcher")
+		case <-tailer.Ctx.Done():
+			log.Println("[Tailer] Exiting tailer")
 			return
 		case <-ticker.C:
 			var (
 				messages []*MessageN
 			)
-			if messages, err = watcher.FetchFromOplog(currResumeToken); err != nil {
-				log.Println("[Watcher] Error in fetching from oplog", err)
+			if messages, err = tailer.FetchFromOplog(currResumeToken); err != nil {
+				log.Println("[Tailer] Error in fetching from oplog", err)
 			}
 			// Update the resume token to the latest timestamp
 			currResumeToken.Timestamp = messages[len(messages)-1].Timestamp
 
-			watcher.WatchCount += len(messages)
-			if watcher.ShouldHonorWatchThreshold == true && len(messages) >= watcher.WatchThreshold {
+			tailer.WatchCount += len(messages)
+			if tailer.ShouldHonorWatchThreshold == true && len(messages) >= tailer.WatchThreshold {
 				return
 			}
 		}

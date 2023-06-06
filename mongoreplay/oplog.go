@@ -37,7 +37,7 @@ type (
 		dstDb          *mongo.Database
 		dstCollections map[string]*OplogCollection
 
-		controllers []*Controller
+		controllers []*TailerManager
 		closeCh     chan bool
 	}
 	MongoConfig struct {
@@ -179,19 +179,17 @@ func (oplogCtx *Oplog) Run() (err error) {
 	}
 	for collName := range oplogCtx.srcCollections {
 		var (
-			ctrlr *Controller
+			controller *Controller
 		)
-		if ctrlr, err = NewController(
+		if controller, err = NewController(
 			oplogCtx.Ctx,
-			oplogCtx.srcDb,
 			oplogCtx.srcCollections[collName],
-			oplogCtx.dstDb,
 			oplogCtx.dstCollections[collName],
 		); err != nil {
 			log.Println(err)
 			continue
 		}
-		go ctrlr.Run()
+		go controller.Run()
 	}
 	<-oplogCtx.closeCh
 	oplogCtx.CancelFunc()

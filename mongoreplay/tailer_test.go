@@ -14,32 +14,32 @@ type (
 	}
 )
 
-var _ = Describe("Watcher", func() {
-	log.Println("Watcher test Suite")
+var _ = Describe("Tailer", func() {
+	log.Println("Tailer test Suite")
 
 	var (
 		newOplog      *Oplog
-		newWatcher    *OplogWatcher
+		newTailer     *OplogTailer
 		stageExecutor StageExecutor
 		err           error
 	)
 	newOplog, _ = New()
 	err = newOplog.Connect()
-	stageExecutor, err = NewOplogWatcher(context.TODO(), newOplog.srcCollections["coll_one"], newOplog.dstCollections["coll_one"])
-	newWatcher = stageExecutor.(*OplogWatcher)
-	newWatcher.ShouldHonorWatchThreshold = true
-	newWatcher.WatchThreshold = 1
-	newWatcher.FetchCountThreshold = 1
+	stageExecutor, err = NewOplogTailer(context.TODO(), newOplog.srcCollections["coll_one"], newOplog.dstCollections["coll_one"])
+	newTailer = stageExecutor.(*OplogTailer)
+	newTailer.ShouldHonorWatchThreshold = true
+	newTailer.WatchThreshold = 1
+	newTailer.FetchCountThreshold = 1
 
-	Describe("Watcher initialisation", func() {
+	Describe("Tailer initialisation", func() {
 		Describe("when default settings are used", func() {
 			go func() {
 				person := &PersonTest{Name: "Gary"}
-				newWatcher.Collection.MongoCollection.InsertOne(context.TODO(), person)
+				newTailer.Collection.MongoCollection.InsertOne(context.TODO(), person)
 			}()
-			newWatcher.Run(&ResumeTokenStore{})
+			newTailer.Run(&ResumeTokenStore{})
 			It("ensures no error", func() { Expect(err).To(BeNil()) })
-			It("ensures only 1 oplog entry", func() { Expect(newWatcher.WatchCount).To(Equal(1)) })
+			It("ensures only 1 oplog entry", func() { Expect(newTailer.WatchCount).To(Equal(1)) })
 		})
 	})
 
@@ -47,7 +47,7 @@ var _ = Describe("Watcher", func() {
 		var (
 			messages []*MessageN
 		)
-		messages, err = newWatcher.FetchFromOplog(&ResumeTokenStore{})
+		messages, err = newTailer.FetchFromOplog(&ResumeTokenStore{})
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
 		It("ensures message length", func() { Expect(len(messages)).To(BeNumerically("==", 1)) })
 	})
