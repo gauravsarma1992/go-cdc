@@ -2,6 +2,7 @@ package mongoreplay
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 )
@@ -87,7 +88,7 @@ func (stageTracker *StageTracker) RunStage(args ...interface{}) (err error) {
 		stageFunction StageFunction
 		stageExecutor StageExecutor
 	)
-	log.Println("[StageTracker] Running stage", stageTracker.CurrStage)
+	log.Println("[StageTracker] Running stage", stageTracker.CurrStage+1)
 	stageFunction = stageTracker.stageMap[stageTracker.CurrStage]
 
 	stageTracker.Stages[stageTracker.CurrStage] = &Stage{
@@ -118,6 +119,10 @@ func (stageTracker *StageTracker) Next(args ...interface{}) (err error) {
 	stageTracker.Stages[stageTracker.CurrStage].Status = SuccessState
 
 	// Creating the next stage
+	if int(stageTracker.CurrStage) == len(stageTracker.stageMap)-1 {
+		err = errors.New("No stages left to run")
+		return
+	}
 	stageTracker.CurrStage += 1
 	if err = stageTracker.RunStage(args); err != nil {
 		return

@@ -74,7 +74,7 @@ var _ = Describe("Seeder", func() {
 	err = newOplog.Connect()
 	seeder, err = NewSeeder(
 		10,
-		newOplog.dstCollections["coll_one"],
+		newOplog.DstCollections["coll_one"],
 	)
 	err = seeder.Seed()
 

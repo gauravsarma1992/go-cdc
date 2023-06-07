@@ -14,7 +14,7 @@ var _ = Describe("QueryGenerator", func() {
 	message := GetDummyMessage()
 	newOplog, _ := New()
 	newOplog.Connect()
-	newQueryGen, err := NewQueryGenerator(context.TODO(), newOplog.dstCollections["coll_one"].MongoCollection)
+	newQueryGen, err := NewQueryGenerator(context.TODO(), newOplog.DstCollections["coll_one"].MongoCollection)
 
 	Describe("starting query lifecycle", func() {
 		err = newQueryGen.Process(message)

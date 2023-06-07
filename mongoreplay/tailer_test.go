@@ -25,7 +25,7 @@ var _ = Describe("Tailer", func() {
 	)
 	newOplog, _ = New()
 	err = newOplog.Connect()
-	stageExecutor, err = NewOplogTailer(context.TODO(), newOplog.srcCollections["coll_one"], newOplog.dstCollections["coll_one"])
+	stageExecutor, err = NewOplogTailer(context.TODO(), newOplog.SrcCollections["coll_one"], newOplog.DstCollections["coll_one"])
 	newTailer = stageExecutor.(*OplogTailer)
 	newTailer.ShouldHonorWatchThreshold = true
 	newTailer.WatchThreshold = 1

@@ -24,14 +24,14 @@ var _ = Describe("Dumper", func() {
 	err = newOplog.Connect()
 	stageExecutor, err = NewDumper(
 		context.TODO(),
-		newOplog.srcCollections["coll_one"],
-		newOplog.dstCollections["coll_one"],
+		newOplog.SrcCollections["coll_one"],
+		newOplog.DstCollections["coll_one"],
 	)
 	dumper = stageExecutor.(*Dumper)
 	dumper.buffer.Config.CountThreshold = 20
 	dumper.DstCollection.Delete(bson.M{})
 
-	seeder, _ := NewSeeder(100, newOplog.srcCollections["coll_one"])
+	seeder, _ := NewSeeder(100, newOplog.SrcCollections["coll_one"])
 	seeder.Seed()
 
 	err = dumper.Run()

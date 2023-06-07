@@ -32,10 +32,10 @@ type (
 		destMongoConfig   *MongoConfig
 
 		srcDb          *mongo.Database
-		srcCollections map[string]*OplogCollection
+		SrcCollections map[string]*OplogCollection
 
 		dstDb          *mongo.Database
-		dstCollections map[string]*OplogCollection
+		DstCollections map[string]*OplogCollection
 
 		controllers []*TailerManager
 		closeCh     chan bool
@@ -56,8 +56,8 @@ type (
 func New() (oplogCtx *Oplog, err error) {
 	oplogCtx = &Oplog{
 		noOfWorkers:    4,
-		srcCollections: make(map[string]*OplogCollection),
-		dstCollections: make(map[string]*OplogCollection),
+		SrcCollections: make(map[string]*OplogCollection),
+		DstCollections: make(map[string]*OplogCollection),
 		closeCh:        make(chan bool),
 	}
 	oplogCtx.Ctx, oplogCtx.CancelFunc = context.WithCancel(context.Background())
@@ -161,13 +161,13 @@ func (oplogCtx *Oplog) connectToDb(mongoConfig *MongoConfig, collection map[stri
 	return
 }
 func (oplogCtx *Oplog) Connect() (err error) {
-	if oplogCtx.srcDb, err = oplogCtx.connectToDb(oplogCtx.sourceMongoConfig, oplogCtx.srcCollections); err != nil {
+	if oplogCtx.srcDb, err = oplogCtx.connectToDb(oplogCtx.sourceMongoConfig, oplogCtx.SrcCollections); err != nil {
 		return
 	}
-	if oplogCtx.dstDb, err = oplogCtx.connectToDb(oplogCtx.destMongoConfig, oplogCtx.dstCollections); err != nil {
+	if oplogCtx.dstDb, err = oplogCtx.connectToDb(oplogCtx.destMongoConfig, oplogCtx.DstCollections); err != nil {
 		return
 	}
-	for _, coll := range oplogCtx.dstCollections {
+	for _, coll := range oplogCtx.DstCollections {
 		coll.MongoCollection.Drop(context.TODO())
 	}
 	return
@@ -177,14 +177,14 @@ func (oplogCtx *Oplog) Run() (err error) {
 	if err = oplogCtx.Connect(); err != nil {
 		return
 	}
-	for collName := range oplogCtx.srcCollections {
+	for collName := range oplogCtx.SrcCollections {
 		var (
 			controller *Controller
 		)
 		if controller, err = NewController(
 			oplogCtx.Ctx,
-			oplogCtx.srcCollections[collName],
-			oplogCtx.dstCollections[collName],
+			oplogCtx.SrcCollections[collName],
+			oplogCtx.DstCollections[collName],
 		); err != nil {
 			log.Println(err)
 			continue

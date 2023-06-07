@@ -18,8 +18,8 @@ func GetTestTailerManager() (newTailerMgr *TailerManager, err error) {
 	err = newOplog.Connect()
 	stageExecutor, err = NewTailerManager(
 		context.TODO(),
-		newOplog.srcCollections["coll_one"],
-		newOplog.dstCollections["coll_one"],
+		newOplog.SrcCollections["coll_one"],
+		newOplog.DstCollections["coll_one"],
 	)
 	newTailerMgr = stageExecutor.(*TailerManager)
 	newTailerMgr.tailer.WatchThreshold = 2

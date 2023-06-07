@@ -1,15 +1,19 @@
 
-OBJ = mongoreplay/*
+MONGOREPLAY_FOLDER = mongoreplay/*
+SEED_FOLDER = seed/*
 CONFIG_FOLDER = ./config 
 
-debug_test: $(OBJ)
+debug_test: $(MONGOREPLAY_FOLDER)
 	CONFIG_FOLDER=../$(CONFIG_FOLDER) dlv test ./mongoreplay -v
 
-test: $(OBJ)
+test: $(MONGOREPLAY_FOLDER)
 	CONFIG_FOLDER=../$(CONFIG_FOLDER) go test ./mongoreplay -v
 
-build: $(OBJ)
+build: $(MONGOREPLAY_FOLDER)
 	CONFIG_FOLDER=$(CONFIG_FOLDER) go build -a -o bin/mongoreplay ./run
 
-run: $(OBJ)
+run: $(MONGOREPLAY_FOLDER)
 	CONFIG_FOLDER=$(CONFIG_FOLDER) go run run/run.go
+
+seed: $(SEED_FOLDER)
+	CONFIG_FOLDER=$(CONFIG_FOLDER) go run seed/seed.go
