@@ -8,6 +8,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+const (
+	SeedCount = 10
+)
+
 func main() {
 
 	var (
@@ -27,14 +31,18 @@ func main() {
 	if err = oplogCtx.SrcCollections["coll_one"].Delete(bson.M{}); err != nil {
 		log.Fatal(err)
 	}
+	log.Println("[Seeder] Cleaned collection", oplogCtx.SrcCollections["coll_one"].GetCollectionPath())
+
 	if err = oplogCtx.DstCollections["coll_one"].Delete(bson.M{}); err != nil {
 		log.Fatal(err)
 	}
+	log.Println("[Seeder] Cleaned collection", oplogCtx.DstCollections["coll_one"].GetCollectionPath())
 
 	// Starting the seeding
-	if seeder, err = mongoreplay.NewSeeder(1000, oplogCtx.DstCollections["coll_one"]); err != nil {
+	if seeder, err = mongoreplay.NewSeeder(SeedCount, oplogCtx.SrcCollections["coll_one"]); err != nil {
 		log.Fatal(err)
 	}
+	seeder.ShouldClean = false
 
 	if err = seeder.Seed(); err != nil {
 		log.Fatal(err)

@@ -2,8 +2,10 @@ package mongoreplay
 
 import (
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/net/context"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -41,8 +43,8 @@ func (seeder *Seeder) CleanDb() (err error) {
 }
 
 func (seeder *Seeder) GetRowsToSeed() (err error) {
-	seeder.seedRows = append(seeder.seedRows, bson.M{"name": "Gary", "age": 30})
-	seeder.seedRows = append(seeder.seedRows, bson.M{"name": "Ria", "age": 29})
+	seeder.seedRows = append(seeder.seedRows, bson.M{"name": "Gary", "age": 30, "createdAt": primitive.Timestamp{T: uint32(time.Now().Unix()), I: 0}})
+	seeder.seedRows = append(seeder.seedRows, bson.M{"name": "Ria", "age": 29, "createdAt": primitive.Timestamp{T: uint32(time.Now().Unix()), I: 0}})
 	return
 }
 

@@ -2,16 +2,7 @@ package mongoreplay
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"log"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
-)
-
-const (
-	LastUpdatedResumeFile = "/tmp/last-updated-resume-token"
 )
 
 type (
@@ -32,18 +23,7 @@ type (
 
 		trackerCloseCh chan bool
 	}
-
-	ResumeTokenStore struct {
-		Timestamp primitive.Timestamp `json:"timestamp"`
-	}
 )
-
-func (resumeToken *ResumeTokenStore) Copy() (copied *ResumeTokenStore) {
-	copied = &ResumeTokenStore{
-		Timestamp: resumeToken.Timestamp,
-	}
-	return
-}
 
 func NewTailerManager(ctx context.Context, srcColl *OplogCollection, dstColl *OplogCollection) (stageExecutor StageExecutor, err error) {
 	var (
@@ -70,19 +50,8 @@ func NewTailerManager(ctx context.Context, srcColl *OplogCollection, dstColl *Op
 	return
 }
 
-func (tailMgr *TailerManager) getFileName() (fileName string) {
-	fileName = fmt.Sprintf("%s-%s-%s", LastUpdatedResumeFile, tailMgr.SourceCollection.MongoDatabase.Name(), tailMgr.SourceCollection.MongoCollection.Name())
-	return
-}
-
 func (tailMgr *TailerManager) updateLastResumeToken(resumeToken *ResumeTokenStore) (err error) {
-	var (
-		resumeB []byte
-	)
-	if resumeB, err = json.Marshal(resumeToken); err != nil {
-		return
-	}
-	if err = ioutil.WriteFile(tailMgr.getFileName(), resumeB, 0755); err != nil {
+	if err = resumeToken.Store(); err != nil {
 		return
 	}
 	return
@@ -90,12 +59,9 @@ func (tailMgr *TailerManager) updateLastResumeToken(resumeToken *ResumeTokenStor
 
 func (tailMgr *TailerManager) getLastResumeTokenFromStore() (resumeToken *ResumeTokenStore, err error) {
 	var (
-		resumeB []byte
+		resumeTokenStore ResumeTokenStore
 	)
-	if resumeB, err = ioutil.ReadFile(tailMgr.getFileName()); err != nil {
-		return
-	}
-	if err = json.Unmarshal(resumeB, resumeToken); err != nil {
+	if resumeToken, err = resumeTokenStore.Fetch(); err != nil {
 		return
 	}
 	return
@@ -105,10 +71,10 @@ func (tailMgr *TailerManager) trackTailerMessages() (err error) {
 	for {
 		select {
 		case <-tailMgr.Ctx.Done():
-			log.Println("[TailerManager] Close signal received")
+			log.Println("[TailerManager] Close signal received from context")
 			return
 		case <-tailMgr.trackerCloseCh:
-			log.Println("[TailerManager] Close signal received")
+			log.Println("[TailerManager] Close signal received from tracker close channel")
 			return
 		case msg := <-tailMgr.tailer.CtrlrCh:
 			var (
@@ -139,6 +105,7 @@ func (tailMgr *TailerManager) Run(args ...interface{}) (err error) {
 	if lastResumeToken, err = tailMgr.getLastResumeTokenFromStore(); err != nil {
 		lastResumeToken = &ResumeTokenStore{}
 	}
+	log.Println("[TailerManager] Starting tailer from token", lastResumeToken.Timestamp)
 	go tailMgr.trackTailerMessages()
 
 	if err = tailMgr.tailer.Run(lastResumeToken); err != nil {

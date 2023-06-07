@@ -4,15 +4,15 @@ import (
 	"log"
 	"os"
 
-	"github.com/gauravsarma1992/mongoreplay/oplog"
+	"github.com/gauravsarma1992/mongoreplay/mongoreplay"
 )
 
 func main() {
 	var (
 		err      error
-		oplogCtx *oplog.Oplog
+		oplogCtx *mongoreplay.Oplog
 	)
-	if oplogCtx, err = oplog.New(); err != nil {
+	if oplogCtx, err = mongoreplay.New(); err != nil {
 		log.Println(err)
 		os.Exit(-1)
 	}

@@ -24,6 +24,7 @@ All the config files are present in `src/oplog/config` folder
 make run # Runs the mongo container and the mongoreplay container
 make test # Runs the test suite
 make build # Builds the app 
+make seed -B; make run -B; # Seeds the databases and runs it
 ```
 
 ## TODO (sorted based on descending priority)

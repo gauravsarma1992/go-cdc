@@ -3,6 +3,7 @@ package mongoreplay
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"time"
@@ -19,14 +20,17 @@ type (
 
 		store         []*MessageN
 		LastFlushedAt time.Time
-		CurrFlushIdx  int
-		Config        *BufferConfig
-		Flusher       FlusherFunc
+
+		StartIdx int
+		StopIdx  int
+
+		Config  *BufferConfig
+		Flusher FlusherFunc
 	}
 	BufferConfig struct {
 		CountThreshold      int `json:"count_threshold"`
-		TimeInSecsThreshold int `json:"time_in_secs_threshold"`
 		RolloverThreshold   int `json:"rollover_threshold"`
+		TimeInSecsThreshold int `json:"time_in_secs_threshold"`
 	}
 )
 
@@ -55,24 +59,36 @@ func NewBufferConfig() (bufferConfig *BufferConfig, err error) {
 	json.Unmarshal(fileB, bufferConfig)
 
 	if bufferConfig.CountThreshold == 0 {
-		bufferConfig.CountThreshold = 1000
+		bufferConfig.CountThreshold = 3000
 	}
 	if bufferConfig.TimeInSecsThreshold == 0 {
 		bufferConfig.TimeInSecsThreshold = 5
 	}
 	if bufferConfig.RolloverThreshold == 0 {
-		bufferConfig.RolloverThreshold = 5000
+		bufferConfig.RolloverThreshold = 10000
 	}
 	return
 }
 
 func (buffer *Buffer) Length() (count int) {
-	count = len(buffer.store) - buffer.CurrFlushIdx
+	count = buffer.StopIdx - buffer.StartIdx
+	return
+}
+
+func (buffer *Buffer) IsFull() (isFull bool) {
+	if buffer.Length() >= buffer.Config.RolloverThreshold {
+		isFull = true
+	}
 	return
 }
 
 func (buffer *Buffer) Store(event *MessageN) (err error) {
+	if buffer.IsFull() {
+		err = errors.New("[Buffer] Buffer is full")
+		return
+	}
 	buffer.store = append(buffer.store, event)
+	buffer.StopIdx += 1
 	return
 }
 
@@ -82,7 +98,7 @@ func (buffer *Buffer) ShouldFlush() (shouldFlush bool) {
 		shouldFlush = true
 		return
 	}
-	if buffer.Length() >= buffer.Config.CountThreshold {
+	if buffer.Length() >= buffer.Config.RolloverThreshold {
 		shouldFlush = true
 		return
 	}
@@ -90,12 +106,37 @@ func (buffer *Buffer) ShouldFlush() (shouldFlush bool) {
 }
 
 func (buffer *Buffer) Rollover() (err error) {
-	if len(buffer.store) > buffer.Config.RolloverThreshold {
-		log.Println("[Buffer] Rollover", len(buffer.store))
-		buffer.store = make([]*MessageN, 0)
-		buffer.LastFlushedAt = time.Now()
-		buffer.CurrFlushIdx = 0
+	if len(buffer.store) < buffer.Config.RolloverThreshold {
+		return
 	}
+	log.Println("[Buffer] Rollover", len(buffer.store))
+
+	buffer.store = make([]*MessageN, 0)
+	buffer.LastFlushedAt = time.Now()
+	buffer.StartIdx = 0
+	buffer.StopIdx = 0
+	return
+}
+
+func (buffer *Buffer) GetEvents() (events []*MessageN, err error) {
+	for idx := buffer.StartIdx; idx < buffer.StopIdx; idx++ {
+		if idx >= len(buffer.store) {
+			break
+		}
+		events = append(events, buffer.store[idx])
+	}
+	return
+}
+
+func (buffer *Buffer) AfterFlush(eventsLength int) (err error) {
+
+	buffer.StartIdx = eventsLength + 1
+	buffer.StopIdx = eventsLength + 1
+	buffer.LastFlushedAt = time.Now()
+
+	log.Println("[Buffer] Total events remaining:", buffer.Length())
+
+	buffer.Rollover()
 	return
 }
 
@@ -103,34 +144,36 @@ func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeTokenStore, err err
 	var (
 		events []*MessageN
 	)
-	for idx := buffer.CurrFlushIdx; idx < len(buffer.store); idx++ {
-		events = append(events, buffer.store[idx])
-	}
-	if len(events) == 0 {
+	if buffer.Length() <= 0 {
 		return
 	}
+	log.Println("[Buffer] Trying to flush", "events", "from", buffer.StartIdx, "to", buffer.StopIdx)
+
+	if events, err = buffer.GetEvents(); err != nil {
+		return
+	}
+	log.Println("[Buffer] Total events fetched to flush", len(events))
 	if err = buffer.Flusher(events); err != nil {
-		return
+		log.Println(err)
 	}
+
 	lastFlushedResumeToken = &ResumeTokenStore{}
 	lastFlushedResumeToken.Timestamp = events[len(events)-1].Timestamp
 
-	buffer.CurrFlushIdx = len(buffer.store)
-	buffer.LastFlushedAt = time.Now()
-
-	log.Println("[Buffer] Flushed", len(events), "events. Total events remaining:", buffer.Length())
-
-	buffer.Rollover()
+	if err = buffer.AfterFlush(len(events)); err != nil {
+		return
+	}
 	return
 }
 
 func (buffer *Buffer) FlushAll() (lastFlushedResumeToken *ResumeTokenStore, err error) {
+
 	for {
-		if lastFlushedResumeToken, err = buffer.Flush(); err != nil {
-			return
-		}
 		if buffer.Length() == 0 {
 			break
+		}
+		if lastFlushedResumeToken, err = buffer.Flush(); err != nil {
+			return
 		}
 	}
 	return
