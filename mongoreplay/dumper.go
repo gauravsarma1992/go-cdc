@@ -3,6 +3,7 @@ package mongoreplay
 import (
 	"context"
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -46,7 +47,7 @@ func NewDumper(ctx context.Context, srcCollection *OplogCollection, dstCollectio
 	if dumper.query_gen, err = NewQueryGenerator(dumper.Ctx, dumper.DstCollection.MongoCollection); err != nil {
 		return
 	}
-	if dumper.buffer, err = NewBuffer(dumper.Ctx, dumper.query_gen.ProcessAll); err != nil {
+	if dumper.buffer, err = NewBuffer(dumper.Ctx, dumper.query_gen.Process); err != nil {
 		return
 	}
 	stageExecutor = dumper
@@ -91,7 +92,30 @@ func (dumper *Dumper) StartQuery() (err error) {
 	return
 }
 
+func (dumper *Dumper) flushAll() (err error) {
+	var (
+		msgs        []*MessageN
+		resumeToken *ResumeTokenStore
+	)
+	if dumper.buffer.IsEmpty() {
+		return
+	}
+	if msgs, err = dumper.buffer.FlushAll(); err != nil {
+		log.Println("[Dumper] Error on flushing messages in buffer", err)
+	}
+	resumeToken = &ResumeTokenStore{
+		Timestamp: msgs[len(msgs)-1].Timestamp,
+	}
+	dumper.LastResumeToken = resumeToken
+	return
+}
+
 func (dumper *Dumper) trackRows() (err error) {
+	var (
+		ticker *time.Ticker
+	)
+
+	ticker = time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-dumper.DumperCloseCh:
@@ -104,11 +128,10 @@ func (dumper *Dumper) trackRows() (err error) {
 			if err = dumper.buffer.Store(msg); err != nil {
 				log.Println("[Dumper] Error on storing message in buffer", msg, err)
 			}
-			if !dumper.buffer.ShouldFlush() {
-				continue
-			}
-			if dumper.LastResumeToken, err = dumper.buffer.Flush(); err != nil {
+		case <-ticker.C:
+			if err = dumper.flushAll(); err != nil {
 				log.Println("[Dumper] Error on flushing messages in buffer", err)
+				continue
 			}
 		}
 	}
@@ -128,8 +151,8 @@ func (dumper *Dumper) Run(args ...interface{}) (err error) {
 
 	dumper.DumperCloseCh <- true
 
-	if dumper.LastResumeToken, err = dumper.buffer.FlushAll(); err != nil {
-		log.Println("[Dumper] Error on flushing messages in buffer", err)
+	if err = dumper.flushAll(); err != nil {
+		return
 	}
 
 	if err = dumper.LastResumeToken.Store(); err != nil {

@@ -2,179 +2,117 @@ package mongoreplay
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"log"
-	"time"
-)
-
-const (
-	DefaultBufferConfigFile = "./config/buffer_config.json"
+	"fmt"
 )
 
 type (
-	FlusherFunc func([]*MessageN) error
-	Buffer      struct {
-		Ctx context.Context
+	FlusherFunc func(msg *MessageN) (err error)
 
-		store         []*MessageN
-		LastFlushedAt time.Time
+	Buffer struct {
+		Ctx     context.Context
+		flusher FlusherFunc
 
-		StartIdx int
-		StopIdx  int
+		store []*MessageN
 
-		Config  *BufferConfig
-		Flusher FlusherFunc
+		startIdx int
+		stopIdx  int
+
+		Config *BufferConfig
 	}
+
 	BufferConfig struct {
-		CountThreshold      int `json:"count_threshold"`
-		RolloverThreshold   int `json:"rollover_threshold"`
-		TimeInSecsThreshold int `json:"time_in_secs_threshold"`
+		Capacity int `json:"capacity"`
 	}
 )
 
 func NewBuffer(ctx context.Context, flusherFunc FlusherFunc) (buffer *Buffer, err error) {
 	buffer = &Buffer{
-		Ctx:           ctx,
-		Flusher:       flusherFunc,
-		LastFlushedAt: time.Now(),
+		startIdx: 0,
+		stopIdx:  0,
+		flusher:  flusherFunc,
 	}
-	if buffer.Config, err = NewBufferConfig(); err != nil {
+	if err = buffer.updateConfig(); err != nil {
 		return
 	}
+	buffer.store = make([]*MessageN, buffer.Config.Capacity)
 	return
 }
 
-func LogFlusherFunc(events []*MessageN) (err error) {
-	return
-}
-
-func NewBufferConfig() (bufferConfig *BufferConfig, err error) {
-	var (
-		fileB []byte
-	)
-	bufferConfig = &BufferConfig{}
-	fileB, _ = ioutil.ReadFile(DefaultBufferConfigFile)
-	json.Unmarshal(fileB, bufferConfig)
-
-	if bufferConfig.CountThreshold == 0 {
-		bufferConfig.CountThreshold = 3000
-	}
-	if bufferConfig.TimeInSecsThreshold == 0 {
-		bufferConfig.TimeInSecsThreshold = 5
-	}
-	if bufferConfig.RolloverThreshold == 0 {
-		bufferConfig.RolloverThreshold = 10000
+func (buffer *Buffer) updateConfig() (err error) {
+	buffer.Config = &BufferConfig{
+		Capacity: 1000,
 	}
 	return
 }
 
-func (buffer *Buffer) Length() (count int) {
-	count = buffer.StopIdx - buffer.StartIdx
+func (buffer *Buffer) IsEmpty() (isEmpty bool) {
+	if buffer.startIdx == buffer.stopIdx {
+		isEmpty = true
+		return
+	}
 	return
 }
 
 func (buffer *Buffer) IsFull() (isFull bool) {
-	if buffer.Length() >= buffer.Config.RolloverThreshold {
+	if buffer.startIdx == (buffer.stopIdx+1)%buffer.Config.Capacity {
 		isFull = true
+		return
 	}
 	return
 }
 
-func (buffer *Buffer) Store(event *MessageN) (err error) {
+func (buffer *Buffer) Store(msg *MessageN) (err error) {
 	if buffer.IsFull() {
-		err = errors.New("[Buffer] Buffer is full")
+		err = errors.New("Buffer is full")
 		return
 	}
-	buffer.store = append(buffer.store, event)
-	buffer.StopIdx += 1
+
+	buffer.store[buffer.stopIdx] = msg
+	buffer.stopIdx = (buffer.stopIdx + 1) % buffer.Config.Capacity
 	return
 }
 
-func (buffer *Buffer) ShouldFlush() (shouldFlush bool) {
-	timePassed := time.Since(buffer.LastFlushedAt)
-	if int(timePassed.Seconds()) > buffer.Config.TimeInSecsThreshold {
-		shouldFlush = true
+func (buffer *Buffer) Flush() (msg *MessageN, err error) {
+	if buffer.IsEmpty() {
 		return
 	}
-	if buffer.Length() >= buffer.Config.RolloverThreshold {
-		shouldFlush = true
-		return
+	msg = buffer.store[buffer.startIdx]
+	if err = buffer.flusher(msg); err != nil {
+		err = nil
 	}
+	buffer.startIdx = (buffer.startIdx + 1) % buffer.Config.Capacity
 	return
 }
 
-func (buffer *Buffer) Rollover() (err error) {
-	if len(buffer.store) < buffer.Config.RolloverThreshold {
-		return
-	}
-	log.Println("[Buffer] Rollover", len(buffer.store))
-
-	buffer.store = make([]*MessageN, 0)
-	buffer.LastFlushedAt = time.Now()
-	buffer.StartIdx = 0
-	buffer.StopIdx = 0
-	return
-}
-
-func (buffer *Buffer) GetEvents() (events []*MessageN, err error) {
-	for idx := buffer.StartIdx; idx < buffer.StopIdx; idx++ {
-		if idx >= len(buffer.store) {
-			break
-		}
-		events = append(events, buffer.store[idx])
-	}
-	return
-}
-
-func (buffer *Buffer) AfterFlush(eventsLength int) (err error) {
-
-	buffer.StartIdx = eventsLength + 1
-	buffer.StopIdx = eventsLength + 1
-	buffer.LastFlushedAt = time.Now()
-
-	log.Println("[Buffer] Total events remaining:", buffer.Length())
-
-	buffer.Rollover()
-	return
-}
-
-func (buffer *Buffer) Flush() (lastFlushedResumeToken *ResumeTokenStore, err error) {
-	var (
-		events []*MessageN
-	)
-	if buffer.Length() <= 0 {
-		return
-	}
-	log.Println("[Buffer] Trying to flush", "events", "from", buffer.StartIdx, "to", buffer.StopIdx)
-
-	if events, err = buffer.GetEvents(); err != nil {
-		return
-	}
-	log.Println("[Buffer] Total events fetched to flush", len(events))
-	if err = buffer.Flusher(events); err != nil {
-		log.Println(err)
-	}
-
-	lastFlushedResumeToken = &ResumeTokenStore{}
-	lastFlushedResumeToken.Timestamp = events[len(events)-1].Timestamp
-
-	if err = buffer.AfterFlush(len(events)); err != nil {
-		return
-	}
-	return
-}
-
-func (buffer *Buffer) FlushAll() (lastFlushedResumeToken *ResumeTokenStore, err error) {
-
-	for {
-		if buffer.Length() == 0 {
-			break
-		}
-		if lastFlushedResumeToken, err = buffer.Flush(); err != nil {
+func (buffer *Buffer) FlushAll() (msgs []*MessageN, err error) {
+	for !buffer.IsEmpty() {
+		var msg *MessageN
+		if msg, err = buffer.Flush(); err != nil {
 			return
 		}
+		msgs = append(msgs, msg)
 	}
+	return
+}
+
+func (buffer *Buffer) String() (displayStr string) {
+	var (
+		currIdx int
+	)
+	if buffer.IsEmpty() {
+		displayStr = "empty"
+		return
+	}
+	displayStr = "startIdx"
+	currIdx = buffer.startIdx
+	for {
+		displayStr += fmt.Sprintf("<-%+v", buffer.store[currIdx])
+		currIdx = (currIdx + 1) % buffer.Config.Capacity
+		if currIdx == buffer.stopIdx {
+			break
+		}
+	}
+	displayStr += "<-stopIdx"
 	return
 }

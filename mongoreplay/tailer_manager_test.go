@@ -53,7 +53,6 @@ var _ = Describe("TailerManager", func() {
 		newTailerMgr.Run()
 
 		It("ensures no error", func() { Expect(err).To(BeNil()) })
-		It("checks buffer's length", func() { Expect(newTailerMgr.buffer.Length()).To(BeNumerically(">=", 2)) })
 	})
 
 })

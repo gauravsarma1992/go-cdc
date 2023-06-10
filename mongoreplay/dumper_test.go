@@ -28,7 +28,6 @@ var _ = Describe("Dumper", func() {
 		newOplog.DstCollections["coll_one"],
 	)
 	dumper = stageExecutor.(*Dumper)
-	dumper.buffer.Config.CountThreshold = 20
 	dumper.DstCollection.Delete(bson.M{})
 
 	seeder, _ := NewSeeder(100, newOplog.SrcCollections["coll_one"])

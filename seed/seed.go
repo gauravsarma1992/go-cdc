@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	SeedCount = 10
+	SeedCount = 1000
 )
 
 func main() {
@@ -28,12 +28,12 @@ func main() {
 		log.Fatal(err)
 	}
 	// Cleaning the collections on both sides
-	if err = oplogCtx.SrcCollections["coll_one"].Delete(bson.M{}); err != nil {
+	if err = oplogCtx.SrcCollections["coll_one"].MongoCollection.Drop(context.TODO()); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("[Seeder] Cleaned collection", oplogCtx.SrcCollections["coll_one"].GetCollectionPath())
 
-	if err = oplogCtx.DstCollections["coll_one"].Delete(bson.M{}); err != nil {
+	if err = oplogCtx.DstCollections["coll_one"].MongoCollection.Drop(context.TODO()); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("[Seeder] Cleaned collection", oplogCtx.DstCollections["coll_one"].GetCollectionPath())
