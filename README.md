@@ -1,5 +1,6 @@
 # Mongoreplay 
 CDC for MongoDB written in Golang
+Mongoreplay is a tool which allows to copy data of collections from one cluster to another.
 
 ## Flow of copying data across collections
 - Fetch the list of collections to be copied
